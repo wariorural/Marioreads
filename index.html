@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bokhylle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#EFEFEA;--ink:#111110;--rule:#C9C9C2;--grid:#E3E3DC;--signal:#FF3B00;--gut:20px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--paper);color:var(--ink);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.35;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.mono{font-family:"DM Mono","SFMono-Regular",Menlo,monospace;font-size:11px;letter-spacing:.02em}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 var(--gut) 40px}
+.gridlines{position:absolute;left:var(--gut);right:var(--gut);top:0;bottom:0;pointer-events:none;
+  z-index:0;display:grid;grid-template-columns:repeat(6,1fr)}
+.gridlines i{border-left:1px solid var(--grid)}
+.gridlines i:last-child{border-right:1px solid var(--grid)}
+header,nav,.railwrap,.bar,#view,.foot{position:relative;z-index:1}
+
+header{padding:22px 0 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mark{font-weight:800;font-variation-settings:"wdth" 118;font-size:19px;letter-spacing:-.02em;
+  text-transform:uppercase;line-height:.9}
+.mark small{display:block;font-weight:500;font-size:9px;letter-spacing:.22em;
+  font-variation-settings:"wdth" 88;margin-top:5px;color:#6a6a63}
+.adds{display:flex;gap:0}
+.btn{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;
+  font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;padding:9px 13px;
+  cursor:pointer;transition:background .16s,color .16s;white-space:nowrap}
+.btn+.btn{border-left:0}
+.btn:hover,.btn:focus-visible{background:var(--ink);color:var(--paper)}
+.btn.fill{background:var(--ink);color:var(--paper)}
+.btn.fill:hover{background:var(--signal);border-color:var(--signal)}
+
+nav{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--ink);
+  border-bottom:1px solid var(--rule)}
+nav button{appearance:none;background:none;border:0;border-right:1px solid var(--rule);font-family:inherit;
+  color:#8b8b83;cursor:pointer;text-align:left;padding:8px 9px 7px;display:block;min-width:0;transition:color .2s}
+nav button:last-child{border-right:0}
+nav b{display:block;font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  font-variation-settings:"wdth" 76;white-space:nowrap}
+nav .n{display:block;font-family:"DM Mono",monospace;font-size:13px;margin-top:3px;opacity:.6}
+nav button[aria-selected="true"]{color:var(--ink)}
+nav button[aria-selected="true"] .n{opacity:1}
+.railwrap{height:2px;position:relative}
+.rail{position:absolute;top:0;height:2px;background:var(--ink);
+  transition:left .42s cubic-bezier(.16,1,.3,1),width .42s cubic-bezier(.16,1,.3,1)}
+
+.bar{display:flex;align-items:center;gap:14px;padding:10px 0 2px;flex-wrap:wrap}
+.bar .lab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#8b8b83;font-weight:600}
+.seg{display:flex;gap:13px}
+.seg button{appearance:none;background:none;border:0;font-family:inherit;cursor:pointer;font-size:9px;
+  font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#a3a39b;padding:2px 0;
+  border-bottom:1px solid transparent}
+.seg button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.filter{margin-left:auto;display:flex;align-items:center;gap:7px;min-width:120px;flex:1;max-width:230px}
+.filter input{flex:1;border:0;border-bottom:1px solid var(--rule);background:none;font-family:inherit;
+  font-size:11px;letter-spacing:.06em;padding:4px 0;color:var(--ink);text-transform:uppercase;font-weight:600}
+.filter input:focus{outline:none;border-bottom-color:var(--ink)}
+.filter input::placeholder{color:#b6b6ae;letter-spacing:.14em}
+
+.stack{padding-top:14px}
+.rowwrap{margin-bottom:24px}
+.rowbooks{display:flex;align-items:flex-end;gap:3px;min-height:56px}
+.rowline{height:1px;background:var(--ink);position:relative}
+.rowmeta{position:absolute;right:0;top:5px;font-family:"DM Mono",monospace;font-size:9.5px;color:#b6b6ae}
+.shelflabel{position:absolute;left:0;top:6px;font-size:9px;font-weight:700;letter-spacing:.22em;
+  text-transform:uppercase;font-variation-settings:"wdth" 76;color:#8b8b83;white-space:nowrap;background:var(--paper);padding-right:8px}
+.bookend{flex:0 0 auto;width:6px;background:var(--ink);align-self:flex-end}
+
+.spine{position:relative;flex:0 0 auto;cursor:pointer;border:0;padding:0;display:block;
+  transition:transform .34s cubic-bezier(.16,1,.3,1),opacity .28s;transform-origin:bottom center}
+.spine:hover,.spine:focus-visible{transform:translateY(-13px)}
+.spine:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.spine.dim{opacity:.13}
+.spine .body{width:100%;height:100%;position:relative;display:flex;align-items:center;
+  justify-content:center;overflow:hidden}
+.spine .body::before,.spine .body::after{content:"";position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.42)}
+.spine .body::before{top:9px}.spine .body::after{bottom:9px}
+.spine .t{writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;font-variation-settings:"wdth" 80;white-space:nowrap;
+  overflow:hidden;max-height:calc(100% - 34px);padding:2px}
+.spine .prog{position:absolute;left:0;bottom:0;height:2px;background:var(--signal)}
+.spine .star{position:absolute;top:4px;left:50%;transform:translateX(-50%);width:3px;height:3px;
+  background:rgba(255,255,255,.9);border-radius:50%}
+.spine[data-narrow="1"] .t{display:none}
+.spine.gave .body{filter:saturate(.18)}
+
+.yearhead{display:flex;align-items:baseline;gap:12px;padding:26px 0 6px;border-top:1px solid var(--rule);margin-top:12px}
+.yearhead .y{font-weight:800;font-variation-settings:"wdth" 125;font-size:clamp(30px,9vw,52px);
+  letter-spacing:-.045em;line-height:.85}
+.yearhead .c{font-family:"DM Mono",monospace;font-size:10px;color:#8b8b83}
+
+.reg{border-top:1px solid var(--ink)}
+.regrow{display:grid;grid-template-columns:26px 1fr auto;gap:10px;padding:11px 0;border-bottom:1px solid var(--rule);
+  align-items:baseline;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;
+  font-family:inherit;cursor:pointer}
+.regrow:hover{background:rgba(17,17,16,.035)}
+.regrow .idx{font-family:"DM Mono",monospace;font-size:10px;color:#a3a39b}
+.regrow .ti{font-size:14px;font-weight:700;line-height:1.15}
+.regrow .au{font-size:11px;color:#6a6a63;margin-top:3px}
+.regrow .dt{font-family:"DM Mono",monospace;font-size:10px;color:#6a6a63;text-align:right;white-space:nowrap}
+.regrow.gave .ti{color:#8b8b83;font-weight:500}
+.regrow.gave .idx,.regrow.gave .dt{color:#a3a39b}
+.tagx{display:inline-block;border:1px solid var(--rule);padding:1px 5px;margin-left:6px;font-size:8px;
+  font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8b8b83;vertical-align:1px}
+
+.stats{border-top:1px solid var(--ink);display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px}
+.stat{padding:11px 10px 16px;border-right:1px solid var(--rule)}
+.stat:last-child{border-right:0}
+.stat .v{font-weight:800;font-variation-settings:"wdth" 125;font-size:clamp(24px,7vw,40px);
+  line-height:.82;letter-spacing:-.045em}
+.stat .k{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#6a6a63;margin-top:8px;
+  font-variation-settings:"wdth" 80;font-weight:600}
+
+.empty{padding:34px 0 10px;max-width:320px}
+.empty b{display:block;font-weight:800;font-variation-settings:"wdth" 118;font-size:20px;
+  text-transform:uppercase;letter-spacing:-.02em;margin-bottom:5px}
+.empty p{font-size:13px;color:#6a6a63}
+.foot{margin-top:38px;padding-top:12px;border-top:1px solid var(--rule);display:flex;gap:16px;flex-wrap:wrap}
+.foot button{appearance:none;background:none;border:0;font-family:inherit;font-size:9px;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;color:#a3a39b;cursor:pointer}
+.foot button:hover{color:var(--ink)}
+.storenote{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal);font-weight:700}
+.diag{margin-top:18px;border-top:1px solid var(--ink)}
+.diagrow{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.diagrow .nm{font-size:12px;font-weight:700}
+.diagrow .ur{font-family:"DM Mono",monospace;font-size:9.5px;color:#a3a39b;margin-top:3px;word-break:break-all}
+.diagrow .st{font-family:"DM Mono",monospace;font-size:10px;white-space:nowrap;text-align:right}
+.st.ok{color:#2f6b3a}.st.no{color:var(--signal)}.st.wait{color:#a3a39b}
+@media(max-width:560px){
+  .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:2px}
+}
+
+.flyer{position:fixed;z-index:60;pointer-events:none;transform-origin:left center;backface-visibility:hidden;
+  background-size:cover;background-position:center}
+.scrim{position:fixed;inset:0;background:rgba(17,17,16,.34);opacity:0;z-index:40;transition:opacity .3s;pointer-events:none}
+.scrim.on{opacity:1;pointer-events:auto}
+.panel{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--paper);border-top:1px solid var(--ink);
+  transform:translateY(101%);transition:transform .46s cubic-bezier(.16,1,.3,1);max-height:92vh;overflow-y:auto}
+.panel.on{transform:translateY(0)}
+.panelin{max-width:1180px;margin:0 auto;padding:0 var(--gut) 26px}
+.phead{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--rule);
+  position:sticky;top:0;background:var(--paper);z-index:2}
+.phead span{font-size:9px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#6a6a63}
+.x{appearance:none;background:none;border:0;font-family:inherit;font-size:11px;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:var(--ink)}
+
+.detail{display:grid;grid-template-columns:1fr;gap:20px;padding-top:20px}
+@media(min-width:720px){.detail{grid-template-columns:260px 1fr;gap:34px}}
+.coverslot{width:100%;max-width:200px;aspect-ratio:2/3;background-size:cover;background-position:center}
+.detail h2{font-size:clamp(21px,5.6vw,33px);font-weight:800;font-variation-settings:"wdth" 112;
+  line-height:1.02;letter-spacing:-.035em;text-transform:uppercase}
+.orig{font-size:11px;color:#a3a39b;margin-top:6px;font-style:italic}
+.byline{font-size:12px;color:#6a6a63;margin-top:7px}
+.blurb{margin-top:16px;font-size:13.5px;line-height:1.52;max-width:56ch;color:#2a2a26}
+.meta{margin-top:18px;border-top:1px solid var(--rule)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--rule)}
+.row span:first-child{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#6a6a63;font-weight:600;padding-top:2px}
+.acts{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px}
+.acts.second{margin-top:9px}
+.act{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;font-size:10px;
+  font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:9px 13px;cursor:pointer;
+  transition:background .16s,color .16s}
+.act:hover,.act:focus-visible{background:var(--ink);color:var(--paper)}
+.act.on{background:var(--ink);color:var(--paper)}
+.act.sig{border-color:var(--signal);color:var(--signal)}
+.act.sig:hover{background:var(--signal);color:var(--paper)}
+.act.quiet{border-color:var(--rule);color:#8b8b83;font-weight:600}
+.act.quiet:hover{background:none;border-color:var(--ink);color:var(--ink)}
+.pagerow{display:flex;align-items:center;gap:10px;margin-top:16px}
+.pagerow input[type=range]{flex:1;accent-color:var(--signal)}
+.datefix{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.datefix label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#6a6a63;font-weight:600;
+  display:flex;flex-direction:column;gap:4px}
+.datefix input{font-family:"DM Mono",monospace;font-size:11px;border:1px solid var(--rule);background:none;
+  padding:5px 7px;color:var(--ink)}
+
+.searchin{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ink);padding:16px 0 10px;margin-top:14px}
+.searchin input{flex:1;border:0;background:none;font-family:inherit;font-size:clamp(19px,5vw,26px);font-weight:800;
+  font-variation-settings:"wdth" 112;letter-spacing:-.03em;color:var(--ink);text-transform:uppercase}
+.searchin input::placeholder{color:#b6b6ae}
+.searchin input:focus{outline:none}
+.hint{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#6a6a63;margin-top:9px;font-weight:600}
+.opts{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.optline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.res{display:flex;gap:13px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--rule);width:100%;
+  background:none;border-left:0;border-right:0;border-top:0;text-align:left;font-family:inherit;cursor:pointer}
+.res:hover{background:rgba(17,17,16,.035)}
+.res .th{flex:0 0 34px;height:51px;background:var(--grid);background-size:cover;background-position:center}
+.res .ti{font-size:13.5px;font-weight:700;line-height:1.2}
+.res .au{font-size:11px;color:#6a6a63;margin-top:3px}
+.res .add{margin-left:auto;font-size:16px;color:#6a6a63;padding-left:8px}
+#cam{width:100%;max-width:420px;margin-top:16px;background:#111;aspect-ratio:4/3;object-fit:cover}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);z-index:80;background:var(--ink);
+  color:var(--paper);padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  transition:transform .35s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:14px}
+.toast.on{transform:translate(-50%,0)}
+.toast button{appearance:none;background:none;border:0;color:var(--signal);font-family:inherit;font-size:10px;
+  font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="gridlines" id="gridlines"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <header>
+    <div class="mark">Bokhylle<small>UTEN DILLDALL</small></div>
+    <div class="adds">
+      <button class="btn fill" id="openScan">Skann</button>
+      <button class="btn" id="openSearch">Søk</button>
+    </div>
+  </header>
+
+  <nav id="tabs" role="tablist">
+    <button role="tab" data-view="toread" aria-selected="true"><b>Skal lese</b><span class="n" data-count="toread">00</span></button>
+    <button role="tab" data-view="reading" aria-selected="false"><b>Leser</b><span class="n" data-count="reading">00</span></button>
+    <button role="tab" data-view="rec" aria-selected="false"><b>Anbefalt</b><span class="n" data-count="rec">00</span></button>
+    <button role="tab" data-view="read" aria-selected="false"><b>Lest</b><span class="n" data-count="read">00</span></button>
+  </nav>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+
+  <div class="bar">
+    <span class="lab" id="barlab">Rekkefølge</span>
+    <div class="seg" id="seg"></div>
+    <div class="filter"><input id="filter" placeholder="Finn i hylla" aria-label="Filtrer hylla"></div>
+  </div>
+
+  <div id="view"></div>
+
+  <div class="foot">
+    <button id="nettest">Nettverkstest</button>
+    <button id="export">Eksporter JSON</button>
+    <button id="import">Importer JSON</button>
+    <button id="wipe">Nullstill demo</button>
+    <span id="storenote" class="storenote"></span>
+    <input type="file" id="importfile" accept="application/json,.json" hidden>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="panel" id="panel">
+  <div class="panelin">
+    <div class="phead"><span id="ptitle">Bok</span><button class="x" id="closePanel">Lukk ✕</button></div>
+    <div id="pbody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════ konstanter ═══════════ */
+const VIEWS = {toread:"Skal lese", reading:"Leser", rec:"Anbefalt", read:"Lest"};
+const LANGS = {nor:"Norsk", nob:"Norsk", nno:"Nynorsk", eng:"Engelsk", swe:"Svensk", dan:"Dansk",
+               ger:"Tysk", fre:"Fransk", spa:"Spansk", ita:"Italiensk"};
+const KEY="bokhylle:v5", SKEY="bokhylle:settings";
+let books=[], view="toread", sort="added", regFilter="all", regMode="shelf";
+let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
+
+const $ = s => document.querySelector(s);
+const el = (t,c) => { const e=document.createElement(t); if(c) e.className=c; return e; };
+const uid = () => Math.random().toString(36).slice(2,10);
+const today = () => new Date().toISOString().slice(0,10);
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ═══════════ farge ═══════════ */
+function hashN(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
+const fallbackColor = s => { const h=hashN(s); return `hsl(${h%360} ${28+(h>>8)%26}% ${30+(h>>4)%22}%)`; };
+function readable(c){
+  const m=(c||"").match(/\d+/g); if(!m||m.length<3) return "#EFEFEA";
+  const [r,g,b]=m.map(Number);
+  return (r*299+g*587+b*114)/1000 > 132 ? "#111110" : "#EFEFEA";
+}
+function extractColor(url){
+  return new Promise(res => {
+    if(!url) return res(null);
+    const img=new Image(); img.crossOrigin="anonymous";
+    img.onload=()=>{ try{
+      const n=24, cv=el("canvas"); cv.width=n; cv.height=n;
+      const cx=cv.getContext("2d",{willReadFrequently:true}); cx.drawImage(img,0,0,n,n);
+      const d=cx.getImageData(0,0,n,n).data, bins={};
+      for(let i=0;i<d.length;i+=4){
+        const r=d[i],g=d[i+1],b=d[i+2], k=`${r>>5},${g>>5},${b>>5}`;
+        (bins[k]=bins[k]||{n:0,r:0,g:0,b:0}); bins[k].n++; bins[k].r+=r; bins[k].g+=g; bins[k].b+=b;
+      }
+      let bs=-1,br=0,bg=0,bb=0;
+      for(const k in bins){
+        const o=bins[k], r=o.r/o.n, g=o.g/o.n, b=o.b/o.n;
+        const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+        const sat=mx===0?0:(mx-mn)/mx, light=mx/255;
+        const score=o.n*(0.35+sat*1.5)*((light>0.94||light<0.08)?0.12:1);
+        if(score>bs){bs=score;br=r;bg=g;bb=b;}
+      }
+      res(`rgb(${Math.round(br*.86)}, ${Math.round(bg*.86)}, ${Math.round(bb*.86)})`);
+    }catch(e){ res(null); } };
+    img.onerror=()=>res(null);
+    img.src=url;
+  });
+}
+
+/* ═══════════ KILDEADAPTER ═══════════
+   Alle kilder svarer med samme form, så resten av appen ikke vet
+   hvem som leverte dataene. Bytt ut innmaten her når NB eller
+   Bokbasen viser seg å være best på norske utgaver.
+   { title, author, year, pages, isbn, lang, coverUrl, blurb, ref, source }
+═══════════════════════════════════════ */
+const isIsbn = q => /^[\d\-\s]{10,17}$/.test(q.trim()) && q.replace(/\D/g,"").length>=10;
+const olCover = (id,s) => id ? `https://covers.openlibrary.org/b/id/${id}-${s}.jpg` : null;
+
+const SOURCES = {
+  ol: {
+    label:"Open Library", canEditions:true,
+    async search(q){
+      const query = isIsbn(q) ? `isbn:${q.replace(/\D/g,"")}` : q;
+      const url = "https://openlibrary.org/search.json?limit=14&fields=key,title,author_name,"
+        + "first_publish_year,cover_i,number_of_pages_median,isbn,language&q=" + encodeURIComponent(query);
+      const j = await (await fetch(url)).json();
+      return (j.docs||[]).map(d => ({
+        title:d.title, author:(d.author_name||["Ukjent"])[0], year:d.first_publish_year||null,
+        pages:d.number_of_pages_median||260, isbn:(d.isbn||[])[0]||null,
+        lang:(d.language||[])[0]||null, coverUrl:olCover(d.cover_i,"M"),
+        coverBig:olCover(d.cover_i,"L"), blurb:null, ref:d.key, source:"ol"
+      }));
+    },
+    async editions(ref){
+      const j = await (await fetch(`https://openlibrary.org${ref}/editions.json?limit=120`)).json();
+      return (j.entries||[]).filter(e=>e.title).map(e => ({
+        title:e.title + (e.subtitle ? ": "+e.subtitle : ""),
+        langs:(e.languages||[]).map(l=>l.key.split("/").pop()),
+        coverUrl:olCover((e.covers||[]).filter(c=>c>0)[0],"M"),
+        coverBig:olCover((e.covers||[]).filter(c=>c>0)[0],"L"),
+        isbn:(e.isbn_13||e.isbn_10||[])[0]||null,
+        year:((e.publish_date||"").match(/\d{4}/)||[null])[0],
+        publisher:(e.publishers||[])[0]||null, pages:e.number_of_pages||null
+      }));
+    },
+    async blurb(ref){
+      const j = await (await fetch(`https://openlibrary.org${ref}.json`)).json();
+      let d=j.description; if(d&&typeof d==="object") d=d.value;
+      return d ? String(d).split("([")[0].replace(/\[\d+\]/g,"").trim().slice(0,620) : null;
+    }
+  },
+  gb: {
+    label:"Google Books", canEditions:false,
+    async search(q){
+      const query = isIsbn(q) ? `isbn:${q.replace(/\D/g,"")}` : q;
+      const lang = prefLang==="any" ? "" : `&langRestrict=${prefLang==="nor"?"no":"en"}`;
+      const url = `https://www.googleapis.com/books/v1/volumes?maxResults=14&q=${encodeURIComponent(query)}${lang}`;
+      const j = await (await fetch(url)).json();
+      return (j.items||[]).map(it => {
+        const v = it.volumeInfo||{};
+        const img = (v.imageLinks||{});
+        const fix = u => u ? u.replace(/^http:/,"https:") : null;
+        const ids = v.industryIdentifiers||[];
+        return {
+          title:v.title + (v.subtitle ? ": "+v.subtitle : ""),
+          author:(v.authors||["Ukjent"])[0], year:(v.publishedDate||"").slice(0,4)||null,
+          pages:v.pageCount||260,
+          isbn:(ids.find(i=>i.type==="ISBN_13")||ids[0]||{}).identifier||null,
+          lang:{no:"nor",en:"eng",sv:"swe",da:"dan",de:"ger",fr:"fre"}[v.language]||v.language||null,
+          coverUrl:fix(img.thumbnail||img.smallThumbnail),
+          coverBig:fix((img.thumbnail||"").replace("zoom=1","zoom=3")) || fix(img.thumbnail),
+          publisher:v.publisher||null,
+          blurb:v.description ? v.description.replace(/<[^>]+>/g,"").slice(0,620) : null,
+          ref:it.id, source:"gb"
+        };
+      });
+    },
+    async blurb(){ return null; }
+  }
+};
+
+/* ═══════════ lagring ═══════════
+   window.storage finnes bare inne i Claude. Utenfor faller vi
+   tilbake til minne — da er JSON-eksport/import redningen.
+   I et ekte repo byttes dette ut med IndexedDB.                */
+const MEM={};
+const HAS_STORE = typeof window!=="undefined" && !!window.storage;
+const STORE = HAS_STORE ? window.storage : {
+  get: async k => (k in MEM ? {key:k, value:MEM[k]} : null),
+  set: async (k,v) => { MEM[k]=v; return {key:k, value:v}; }
+};
+async function save(){ try{ await STORE.set(KEY, JSON.stringify(books)); }catch(e){} }
+async function saveSettings(){ try{ await STORE.set(SKEY, JSON.stringify({prefLang,source})); }catch(e){} }
+async function load(){
+  try{ const s=await STORE.get(SKEY); if(s&&s.value){ const o=JSON.parse(s.value);
+    prefLang=o.prefLang||prefLang; source=o.source||source; } }catch(e){}
+  try{ const r=await STORE.get(KEY); if(r&&r.value){ books=JSON.parse(r.value); return true; } }catch(e){}
+  return false;
+}
+const finYear = b => (b.finished||"").slice(0,4) || b.finishedYear || null;
+const finKey  = b => b.finished || (b.finishedYear ? b.finishedYear+"-00-00" : "0000-00-00");
+const isDone  = b => b.shelf==="read" && !b.gaveUp;
+
+/* ═══════════ frø ═══════════ */
+const SEED = [
+  {title:"Grid Systems in Graphic Design", author:"Josef Müller-Brockmann", shelf:"read", rec:1, pages:176, ago:410},
+  {title:"The Shape of Time", author:"George Kubler", shelf:"read", rec:1, pages:136, ago:350},
+  {title:"Solaris", author:"Stanisław Lem", shelf:"read", rec:1, pages:204, ago:290},
+  {title:"Invisible Cities", author:"Italo Calvino", shelf:"read", pages:165, ago:210},
+  {title:"The Rings of Saturn", author:"W.G. Sebald", shelf:"read", rec:1, pages:296, ago:150},
+  {title:"Infinite Jest", author:"David Foster Wallace", shelf:"read", gaveUp:1, pages:1079, page:246, ago:120},
+  {title:"A Void", author:"Georges Perec", shelf:"read", pages:285, ago:74},
+  {title:"The Employees", author:"Olga Ravn", shelf:"read", rec:1, pages:136, ago:41},
+  {title:"The Name of the Rose", author:"Umberto Eco", shelf:"read", rec:1, pages:536, onlyYear:"2011"},
+  {title:"The Left Hand of Darkness", author:"Ursula K. Le Guin", shelf:"reading", pages:304, page:118, ago:19},
+  {title:"Hunger", author:"Knut Hamsun", shelf:"reading", pages:240, page:52, ago:9},
+  {title:"The Society of the Spectacle", author:"Guy Debord", shelf:"toread", pages:154, ago:30},
+  {title:"Pattern Recognition", author:"William Gibson", shelf:"toread", pages:356, ago:22},
+  {title:"The Order of Things", author:"Michel Foucault", shelf:"toread", pages:387, ago:12},
+  {title:"Autumn", author:"Ali Smith", shelf:"toread", pages:264, ago:5}
+];
+const daysAgo = n => new Date(Date.now()-n*864e5).toISOString().slice(0,10);
+
+async function seed(){
+  books = SEED.map(s => ({
+    id:uid(), title:s.title, origTitle:null, author:s.author, pages:s.pages, page:s.page||0,
+    shelf:s.shelf, rec:!!s.rec, gaveUp:!!s.gaveUp, isbn:null, year:null, lang:null, publisher:null,
+    coverUrl:null, coverBig:null, ref:null, src:null, blurb:null, color:fallbackColor(s.title),
+    addedAt: s.onlyYear ? s.onlyYear+"-06-01" : daysAgo((s.ago||0)+14),
+    started: (s.shelf!=="toread" && !s.onlyYear) ? daysAgo((s.ago||0)+10) : null,
+    finished: (s.shelf==="read" && !s.onlyYear) ? daysAgo(s.ago) : null,
+    finishedYear: s.onlyYear||null
+  }));
+  render();
+  for(const b of books){
+    try{
+      const hits = await SOURCES.ol.search(`${b.title} ${b.author}`);
+      const hit = hits.find(h=>h.coverUrl) || hits[0];
+      if(!hit) continue;
+      b.ref=hit.ref; b.src="ol"; b.isbn=hit.isbn; b.year=hit.year;
+      b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig;
+      const c = await extractColor(b.coverUrl); if(c) b.color=c;
+      render();
+    }catch(e){}
+  }
+  save();
+}
+
+/* ═══════════ utvalg ═══════════ */
+function matches(b){
+  if(!filterText) return true;
+  const q = filterText.toLowerCase();
+  return (b.title+" "+b.author+" "+(b.origTitle||"")).toLowerCase().includes(q);
+}
+function listFor(v){
+  let l = v==="rec" ? books.filter(b=>b.rec) : books.filter(b=>b.shelf===v);
+  if(v==="read"){
+    if(regFilter==="done") l = l.filter(isDone);
+    if(regFilter==="gave") l = l.filter(b=>b.gaveUp);
+    return l.slice().sort((a,b)=>finKey(b).localeCompare(finKey(a)));
+  }
+  const by = {
+    added:(a,b)=>(a.addedAt||"").localeCompare(b.addedAt||""),
+    author:(a,b)=>(a.author||"").localeCompare(b.author||"","nb"),
+    pages:(a,b)=>(a.pages||0)-(b.pages||0)
+  }[sort];
+  return l.slice().sort(by);
+}
+
+/* ═══════════ tegning ═══════════ */
+const spineWidth = p => Math.round(Math.max(15, Math.min(58, 15 + Math.sqrt(p||220)*1.75)));
+const spineHeight = b => Math.round(186 + (hashN(b.title)%56));
+
+function render(){
+  for(const k in VIEWS){
+    const n = k==="rec" ? books.filter(b=>b.rec).length : books.filter(b=>b.shelf===k).length;
+    $(`[data-count="${k}"]`).textContent = String(n).padStart(2,"0");
+  }
+  buildBar();
+  const host=$("#view"); host.innerHTML="";
+  const list = listFor(view);
+
+  if(!list.length){
+    const e=el("div","empty");
+    e.innerHTML = view==="read"
+      ? `<b>Ingen ført ennå</b><p>Bøker havner her når du merker dem som lest eller gitt opp.</p>`
+      : `<b>Tom hylle</b><p>Skann strekkoden på en bok du har foran deg, eller søk på tittel.</p>`;
+    host.appendChild(e);
+  } else if(view==="read"){
+    host.appendChild(buildStats());
+    host.appendChild(regMode==="shelf" ? buildYearShelves(list) : buildRegister(list));
+  } else {
+    const st=el("div","stack");
+    buildShelf(list).forEach(n=>st.appendChild(n));
+    host.appendChild(st);
+  }
+  moveRail();
+}
+
+function buildBar(){
+  const seg=$("#seg");
+  seg.innerHTML="";
+  const opts = view==="read"
+    ? [["shelf","Hylle"],["list","Liste"],["gave","Gitt opp"]]
+    : [["added","Kronologisk"],["author","Forfatter"],["pages","Tykkelse"]];
+  const cur = view==="read" ? (regFilter==="gave" ? "gave" : regMode) : sort;
+  $("#barlab").textContent = view==="read" ? "Vis" : "Rekkefølge";
+  opts.forEach(([k,t])=>{
+    const b=el("button"); b.textContent=t; b.dataset.k=k;
+    b.setAttribute("aria-pressed", String(k===cur));
+    seg.appendChild(b);
+  });
+}
+
+function packRows(list){
+  const avail = Math.max(240, $("#view").clientWidth || innerWidth-40);
+  const gap=3, rows=[[]]; let w=0;
+  list.forEach(b=>{
+    const bw=spineWidth(b.pages);
+    if(w+bw+gap > avail-10 && rows[rows.length-1].length){ rows.push([]); w=0; }
+    rows[rows.length-1].push(b); w+=bw+gap;
+  });
+  return rows;
+}
+
+function buildShelf(list, label){
+  const rows = packRows(list);
+  let n=0;
+  return rows.map((row,ri)=>{
+    const wrap=el("div","rowwrap"), rb=el("div","rowbooks");
+    let tall=0, used=0;
+    row.forEach(b=>{ tall=Math.max(tall,spineHeight(b)); used+=spineWidth(b.pages)+3; rb.appendChild(makeSpine(b,n++)); });
+    const avail = Math.max(240, $("#view").clientWidth || innerWidth-40);
+    if(avail-used > 40){                       // bokstøtte der hylla ikke er full
+      const be=el("div","bookend"); be.style.height=(tall*0.55)+"px"; rb.appendChild(be);
+    }
+    const line=el("div","rowline");
+    if(ri===0 && label!==false){ const l=el("div","shelflabel"); l.textContent=VIEWS[view]; line.appendChild(l); }
+    if(rows.length>1){
+      const m=el("div","rowmeta");
+      m.textContent=`${String(ri+1).padStart(2,"0")} / ${String(rows.length).padStart(2,"0")}`;
+      line.appendChild(m);
+    }
+    wrap.append(rb,line);
+    return wrap;
+  });
+}
+
+function makeSpine(b,i){
+  const w=spineWidth(b.pages), h=spineHeight(b);
+  const btn=el("button","spine"+(b.gaveUp?" gave":"")+(matches(b)?"":" dim"));
+  btn.style.width=w+"px"; btn.style.height=h+"px";
+  if(w<24) btn.dataset.narrow="1";
+  btn.setAttribute("aria-label", `${b.title} av ${b.author}`);
+  const body=el("div","body"); body.style.background=b.color;
+  const t=el("div","t"); t.textContent=b.title; t.style.color=readable(b.color);
+  body.appendChild(t);
+  if(b.rec && view!=="rec") body.appendChild(el("div","star"));
+  if(b.shelf==="reading" && b.page>0){
+    const p=el("div","prog"); p.style.width=Math.min(100,(b.page/(b.pages||1))*100)+"%"; body.appendChild(p);
+  }
+  btn.appendChild(body);
+  btn.onclick=()=>openBook(b,body);
+  btn.animate([{transform:"translateY(26px) scaleY(.9)",opacity:0},{transform:"none",opacity:1}],
+    {duration:480, delay:Math.min(i,24)*30, easing:"cubic-bezier(.16,1,.3,1)", fill:"backwards"});
+  return btn;
+}
+
+/* leseåret som fysisk hylle */
+function buildYearShelves(list){
+  const box=el("div");
+  const years={};
+  list.forEach(b=>{ const y=finYear(b)||"Udatert"; (years[y]=years[y]||[]).push(b); });
+  Object.keys(years).sort((a,c)=>{
+    if(a==="Udatert") return 1; if(c==="Udatert") return -1; return c.localeCompare(a);
+  }).forEach(y=>{
+    const head=el("div","yearhead");
+    const pages=years[y].reduce((s,b)=>s+(b.gaveUp?(b.page||0):(b.pages||0)),0);
+    head.innerHTML=`<div class="y">${esc(y)}</div><div class="c">${years[y].length} bøker · ${pages.toLocaleString("nb-NO")} sider</div>`;
+    box.appendChild(head);
+    const st=el("div","stack");
+    buildShelf(years[y], false).forEach(n=>st.appendChild(n));
+    box.appendChild(st);
+  });
+  return box;
+}
+
+function buildRegister(list){
+  const box=el("div");
+  let group=null, reg=null, i=list.length;
+  list.forEach(b=>{
+    const y=finYear(b)||"Udatert";
+    if(y!==group){
+      group=y;
+      const h=el("div","yearhead"); h.innerHTML=`<div class="y">${esc(y)}</div>`; box.appendChild(h);
+      reg=el("div","reg"); box.appendChild(reg);
+    }
+    const days=(b.started&&b.finished)?Math.max(1,Math.round((new Date(b.finished)-new Date(b.started))/864e5)):null;
+    const when=b.finished||(b.finishedYear?"≈ "+b.finishedYear:"udatert");
+    const extent=b.gaveUp?`s. ${b.page||0} av ${b.pages||"?"}`:`${b.pages||"—"} s.${days?` · ${days} d`:""}`;
+    const r=el("button","regrow"+(b.gaveUp?" gave":"")+(matches(b)?"":" dim"));
+    if(!matches(b)) r.style.opacity=".25";
+    r.innerHTML=`<div class="idx">${String(i--).padStart(2,"0")}</div>
+      <div><div class="ti">${esc(b.title)}${b.rec?" ●":""}</div>
+        <div class="au">${esc(b.author)}${b.gaveUp?' <span class="tagx">Gitt opp</span>':""}</div></div>
+      <div class="dt">${esc(when)}<br>${extent}</div>`;
+    r.onclick=()=>openBook(b,r);
+    reg.appendChild(r);
+  });
+  return box;
+}
+
+function buildStats(){
+  const yr=new Date().getFullYear();
+  const done=books.filter(b=>isDone(b)&&String(finYear(b))===String(yr)).length;
+  const pages=books.filter(b=>b.shelf==="read").reduce((s,b)=>s+(b.gaveUp?(b.page||0):(b.pages||0)),0);
+  const fin=books.filter(b=>isDone(b)&&b.started&&b.finished);
+  const avg=fin.length?Math.round(fin.reduce((s,b)=>s+(new Date(b.finished)-new Date(b.started))/864e5,0)/fin.length):0;
+  const d=el("div","stats");
+  d.innerHTML=`<div class="stat"><div class="v">${String(done).padStart(2,"0")}</div><div class="k">Fullført i ${yr}</div></div>
+    <div class="stat"><div class="v">${pages.toLocaleString("nb-NO")}</div><div class="k">Sider totalt</div></div>
+    <div class="stat"><div class="v">${String(avg).padStart(2,"0")}</div><div class="k">Snitt dager per bok</div></div>`;
+  return d;
+}
+
+function moveRail(){
+  const b=document.querySelector(`#tabs [data-view="${view}"]`);
+  const nav=$("#tabs").getBoundingClientRect(), r=b.getBoundingClientRect();
+  $("#rail").style.left=(r.left-nav.left)+"px"; $("#rail").style.width=r.width+"px";
+  $("#gridlines").style.top=document.querySelector("header").offsetHeight+"px";
+}
+
+/* ═══════════ hendelser ═══════════ */
+$("#tabs").onclick=e=>{
+  const b=e.target.closest("[data-view]"); if(!b) return;
+  view=b.dataset.view;
+  document.querySelectorAll("#tabs [role=tab]").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===view)));
+  render();
+};
+$("#seg").onclick=e=>{
+  const b=e.target.closest("[data-k]"); if(!b) return;
+  const k=b.dataset.k;
+  if(view==="read"){
+    if(k==="gave"){ regFilter = regFilter==="gave" ? "all" : "gave"; }
+    else { regMode=k; regFilter="all"; }
+  } else sort=k;
+  render();
+};
+$("#filter").oninput=e=>{ filterText=e.target.value.trim(); render(); };
+let rt; addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(render,160);});
+
+/* ═══════════ panel ═══════════ */
+function openPanel(title,node){
+  $("#ptitle").textContent=title; $("#pbody").innerHTML="";
+  $("#pbody").appendChild(node);
+  $("#panel").classList.add("on"); $("#scrim").classList.add("on");
+}
+function closePanel(){
+  $("#panel").classList.remove("on"); $("#scrim").classList.remove("on");
+  if(flyer){ flyer.remove(); flyer=null; }
+  stopCam();
+}
+$("#closePanel").onclick=closePanel; $("#scrim").onclick=closePanel;
+addEventListener("keydown",e=>{ if(e.key==="Escape") closePanel(); });
+
+function toast(msg, undo){
+  const t=$("#toast"); t.innerHTML="";
+  t.appendChild(document.createTextNode(msg));
+  if(undo){ const u=el("button"); u.textContent="Angre"; u.onclick=()=>{ undo(); t.classList.remove("on"); }; t.appendChild(u); }
+  t.classList.add("on");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"), undo?5200:1700);
+}
+
+function unfold(src,b,done){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches||!src){ done(); return; }
+  const r=src.getBoundingClientRect();
+  if(r.width>120){ done(); return; }
+  const f=el("div","flyer");
+  f.style.cssText+=`left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;background-color:${b.color}`;
+  if(b.coverBig||b.coverUrl) f.style.backgroundImage=`url(${b.coverBig||b.coverUrl})`;
+  document.body.appendChild(f); flyer=f;
+  const tw=Math.min(200,innerWidth*0.44), th=tw*1.5;
+  const tx=innerWidth>720?20:(innerWidth-tw)/2-r.left, ty=innerHeight*0.30-r.top;
+  const a=f.animate([
+    {transform:"perspective(1400px) rotateY(0deg) translate(0,0)",width:r.width+"px",height:r.height+"px"},
+    {transform:`perspective(1400px) rotateY(-52deg) translate(${tx*.5}px,${ty*.55}px)`,width:(r.width+tw)/2+"px",height:(r.height+th)/2+"px",offset:.5},
+    {transform:`perspective(1400px) rotateY(0deg) translate(${tx}px,${ty}px)`,width:tw+"px",height:th+"px"}
+  ],{duration:640,easing:"cubic-bezier(.22,1,.28,1)",fill:"forwards"});
+  setTimeout(done,230);
+  a.onfinish=()=>{ f.animate([{opacity:1},{opacity:0}],{duration:220,fill:"forwards",delay:120})
+    .onfinish=()=>{ f.remove(); if(flyer===f) flyer=null; }; };
+}
+
+/* ═══════════ bokdetalj ═══════════ */
+async function openBook(b,src){
+  unfold(src,b,()=>openPanel(b.gaveUp?"Gitt opp":VIEWS[b.shelf],buildDetail(b)));
+  if(!b.blurb && b.ref && b.src && SOURCES[b.src].blurb){
+    try{
+      const t=await SOURCES[b.src].blurb(b.ref);
+      if(t){ b.blurb=t; save();
+        const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent=t; }
+      else { const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent="Ingen omtale registrert."; }
+    }catch(e){}
+  }
+}
+function refresh(b){ save(); render(); openPanel(b.gaveUp?"Gitt opp":VIEWS[b.shelf], buildDetail(b)); }
+
+function buildDetail(b){
+  const wrap=el("div","detail");
+  const left=el("div"), cov=el("div","coverslot");
+  cov.style.background=b.color;
+  if(b.coverBig||b.coverUrl) cov.style.backgroundImage=`url(${b.coverBig||b.coverUrl})`;
+  left.appendChild(cov);
+
+  const right=el("div");
+  const h=el("h2"); h.textContent=b.title;
+  right.appendChild(h);
+  if(b.origTitle && b.origTitle!==b.title){
+    const o=el("div","orig"); o.textContent="Originaltittel: "+b.origTitle; right.appendChild(o);
+  }
+  const by=el("div","byline");
+  by.textContent=[b.author, b.year, b.lang?(LANGS[b.lang]||b.lang):null, b.publisher].filter(Boolean).join(" · ");
+  const blurb=el("p","blurb"); blurb.dataset.blurb=b.id;
+  blurb.textContent=b.blurb||(b.ref?"Henter omtale …":"Ingen omtale.");
+  right.append(by,blurb);
+
+  const meta=el("div","meta");
+  [["Sider",b.pages||"—"],["ISBN",b.isbn||"—"],["Kilde",b.src?SOURCES[b.src].label:"—"],["Lagt til",b.addedAt||"—"]]
+    .forEach(([k,v])=>{ const r=el("div","row"); r.innerHTML=`<span>${k}</span><span class="mono">${esc(v)}</span>`; meta.appendChild(r); });
+  right.appendChild(meta);
+
+  const df=el("div","datefix");
+  [["Startet","started"],["Ferdig","finished"]].forEach(([lab,key])=>{
+    const l=el("label"); l.textContent=lab;
+    const i=el("input"); i.type="date"; i.value=b[key]||"";
+    i.onchange=()=>{ b[key]=i.value||null; if(key==="finished"&&i.value) b.finishedYear=null; refresh(b); };
+    l.appendChild(i); df.appendChild(l);
+  });
+  const yl=el("label"); yl.textContent="Eller bare år";
+  const yi=el("input"); yi.type="number"; yi.min=1400; yi.max=2100; yi.placeholder="ÅÅÅÅ";
+  yi.style.width="86px"; yi.value=b.finishedYear||"";
+  yi.onchange=()=>{ b.finishedYear=yi.value?String(yi.value):null; if(b.finishedYear) b.finished=null; refresh(b); };
+  yl.appendChild(yi); df.appendChild(yl);
+  right.appendChild(df);
+
+  if(b.shelf==="reading"||b.gaveUp){
+    const pr=el("div","pagerow");
+    const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`s. ${b.page||0}/${b.pages}`;
+    const range=el("input"); range.type="range"; range.min=0; range.max=b.pages||300; range.value=b.page||0;
+    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`s. ${b.page}/${b.pages}`; };
+    range.onchange=()=>{ save(); render(); };
+    pr.append(lbl,range); right.appendChild(pr);
+  }
+
+  // primærhandlinger
+  const acts=el("div","acts");
+  const add=(box,cls,txt,fn)=>{ const x=el("button","act "+cls); x.textContent=txt; x.onclick=fn; box.appendChild(x); };
+  if(b.shelf!=="reading")
+    add(acts,"sig", b.gaveUp?"Ta den opp igjen":"Begynn å lese",()=>{
+      b.shelf="reading"; b.gaveUp=false; b.started=b.started||today(); b.finished=null; b.finishedYear=null;
+      refresh(b); toast("Leser nå"); });
+  if(b.shelf==="reading"){
+    add(acts,"","Ferdig lest",()=>{ b.shelf="read"; b.gaveUp=false; b.finished=today(); b.page=b.pages; refresh(b); toast("Ført i registeret"); });
+    add(acts,"quiet","Gi opp",()=>{ b.shelf="read"; b.gaveUp=true; b.finished=today(); refresh(b); toast("Ført som gitt opp"); });
+  }
+  add(acts, b.rec?"on":"", b.rec?"Anbefalt ●":"Anbefal",()=>{ b.rec=!b.rec; refresh(b); });
+  right.appendChild(acts);
+
+  // sekundære
+  const more=el("div","acts second");
+  if(b.shelf!=="toread") add(more,"quiet","→ Skal lese",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
+  if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Bytt utgave",()=>openEditions(b));
+  add(more,"quiet","Fjern",()=>{
+    const idx=books.indexOf(b); lastRemoved={b,idx};
+    books=books.filter(x=>x.id!==b.id); save(); render(); closePanel();
+    toast("Fjernet", ()=>{ books.splice(lastRemoved.idx,0,lastRemoved.b); save(); render(); });
+  });
+  right.appendChild(more);
+
+  wrap.append(left,right);
+  return wrap;
+}
+
+/* ═══════════ utgaver ═══════════ */
+async function openEditions(b){
+  const w=el("div");
+  const bar=el("div","optline"); bar.style.marginTop="16px";
+  const hint=el("div","hint"); hint.textContent="Henter utgaver …";
+  const results=el("div"); results.style.marginTop="8px";
+  w.append(bar,hint,results);
+  openPanel("Velg utgave",w);
+  if(!b.ref){ hint.textContent="Boka er ikke koblet til en katalog."; return; }
+
+  let all=[];
+  try{ all=await SOURCES[b.src].editions(b.ref); }catch(e){}
+  if(!all.length){ hint.textContent="Fant ingen utgaver."; return; }
+
+  const present=[...new Set(all.flatMap(e=>e.langs))].filter(l=>LANGS[l]);
+  let filter = present.includes(prefLang) ? prefLang : "all";
+  const seg=el("div","seg");
+  [["all","Alle"],...present.map(l=>[l,LANGS[l]])].forEach(([k,lab])=>{
+    const x=el("button"); x.textContent=lab; x.dataset.k=k;
+    x.setAttribute("aria-pressed",String(k===filter));
+    x.onclick=()=>{ filter=k; seg.querySelectorAll("button").forEach(y=>y.setAttribute("aria-pressed",String(y.dataset.k===k))); draw(); };
+    seg.appendChild(x);
+  });
+  bar.appendChild(seg);
+
+  function draw(){
+    const list=(filter==="all"?all:all.filter(e=>e.langs.includes(filter)))
+      .sort((a,c)=>(c.coverUrl?1:0)-(a.coverUrl?1:0));
+    hint.textContent=`${list.length} utgaver`;
+    results.innerHTML="";
+    list.slice(0,40).forEach(e=>{
+      const r=el("button","res");
+      const th=el("div","th"); if(e.coverUrl) th.style.backgroundImage=`url(${e.coverUrl})`;
+      const info=el("div");
+      const sub=[e.langs.map(l=>LANGS[l]||l).join("/"),e.publisher,e.year,e.pages?e.pages+" s.":null].filter(Boolean).join(" · ");
+      info.innerHTML=`<div class="ti">${esc(e.title)}</div><div class="au">${esc(sub)}</div>`;
+      const a=el("div","add"); a.textContent="→";
+      r.append(th,info,a);
+      r.onclick=async()=>{
+        if(!b.origTitle) b.origTitle=b.title;
+        b.title=e.title; b.lang=e.langs[0]||null;
+        if(e.coverUrl){ b.coverUrl=e.coverUrl; b.coverBig=e.coverBig||e.coverUrl; }
+        if(e.isbn) b.isbn=e.isbn;
+        if(e.pages) b.pages=e.pages;
+        if(e.year) b.year=e.year;
+        if(e.publisher) b.publisher=e.publisher;
+        const c=await extractColor(b.coverUrl); if(c) b.color=c;
+        refresh(b); toast("Utgave byttet");
+      };
+      results.appendChild(r);
+    });
+  }
+  draw();
+}
+
+/* ═══════════ søk ═══════════ */
+function searchPanel(prefill){
+  const w=el("div");
+  const box=el("div","searchin");
+  const inp=el("input"); inp.placeholder="Tittel eller ISBN"; inp.setAttribute("aria-label","Søk etter bok");
+  if(prefill) inp.value=prefill;
+  box.appendChild(inp);
+
+  const opts=el("div","opts");
+  const l1=el("div","optline"), l2=el("div","optline");
+  const mk=(label,items,cur,fn)=>{
+    const lab=el("span","lab"); lab.style.cssText="font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#8b8b83;font-weight:600";
+    lab.textContent=label;
+    const seg=el("div","seg");
+    items.forEach(([k,t])=>{
+      const x=el("button"); x.textContent=t; x.dataset.k=k;
+      x.setAttribute("aria-pressed",String(k===cur()));
+      x.onclick=()=>{ fn(k); seg.querySelectorAll("button").forEach(y=>y.setAttribute("aria-pressed",String(y.dataset.k===k))); go(true); };
+      seg.appendChild(x);
+    });
+    return [lab,seg];
+  };
+  l1.append(...mk("Utgave på",[["nor","Norsk"],["eng","Engelsk"],["any","Alle"]],()=>prefLang,k=>{prefLang=k;saveSettings();}));
+  l2.append(...mk("Katalog",[["ol","Open Library"],["gb","Google Books"]],()=>source,k=>{source=k;saveSettings();}));
+  opts.append(l1,l2);
+
+  const hint=el("div","hint"); hint.textContent="Skriv minst tre tegn";
+  const results=el("div");
+  w.append(box,opts,hint,results);
+  openPanel("Legg til bok",w);
+  setTimeout(()=>inp.focus(),380);
+
+  let timer;
+  async function go(now){
+    clearTimeout(timer);
+    const q=inp.value.trim();
+    if(q.length<3){ results.innerHTML=""; hint.textContent="Skriv minst tre tegn"; return; }
+    hint.textContent = isIsbn(q) ? "Slår opp ISBN …" : "Søker …";
+    timer=setTimeout(async()=>{
+      try{
+        const hits=await SOURCES[source].search(q);
+        hint.textContent = hits.length ? `${hits.length} treff i ${SOURCES[source].label}` : "Ingen treff. Prøv en annen skrivemåte eller bytt katalog.";
+        results.innerHTML="";
+        hits.forEach(h=>results.appendChild(resultRow(h)));
+      }catch(e){
+        hint.textContent=`Fikk ikke svar fra ${SOURCES[source].label}. Prøv den andre katalogen.`;
+      }
+    }, now?0:340);
+  }
+  inp.oninput=()=>go();
+  if(prefill) go(true);
+}
+$("#openSearch").onclick=()=>searchPanel();
+
+function resultRow(hit){
+  const r=el("button","res");
+  const th=el("div","th"); if(hit.coverUrl) th.style.backgroundImage=`url(${hit.coverUrl})`;
+  const info=el("div");
+  const sub=[hit.author,hit.year,hit.lang?(LANGS[hit.lang]||hit.lang):null].filter(Boolean).join(" · ");
+  info.innerHTML=`<div class="ti">${esc(hit.title)}</div><div class="au">${esc(sub)}</div>`;
+  const add=el("div","add"); add.textContent="+";
+  r.append(th,info,add);
+  r.onclick=async()=>{
+    const b={
+      id:uid(), title:hit.title, origTitle:null, author:hit.author, year:hit.year, pages:hit.pages,
+      isbn:hit.isbn, lang:hit.lang, publisher:hit.publisher||null,
+      coverUrl:hit.coverUrl, coverBig:hit.coverBig||hit.coverUrl, ref:hit.ref, src:hit.source,
+      blurb:hit.blurb||null, shelf: view==="rec"?"toread":view, rec: view==="rec",
+      gaveUp:false, page:0, started:null, finished:null, finishedYear:null,
+      addedAt:today(), color:fallbackColor(hit.title)
+    };
+    books.push(b); render(); save(); closePanel();
+    toast(`Lagt i ${VIEWS[b.shelf]}`);
+    // riktig utgave på ønsket språk
+    if(prefLang!=="any" && b.ref && SOURCES[b.src].canEditions && b.lang!==prefLang){
+      try{
+        const eds=await SOURCES[b.src].editions(b.ref);
+        const inLang=eds.filter(e=>e.langs.includes(prefLang));
+        const pick=inLang.find(e=>e.coverUrl&&e.pages)||inLang.find(e=>e.coverUrl)||inLang[0];
+        if(pick){
+          b.origTitle=b.title; b.title=pick.title; b.lang=prefLang;
+          if(pick.coverUrl){ b.coverUrl=pick.coverUrl; b.coverBig=pick.coverBig||pick.coverUrl; }
+          if(pick.isbn) b.isbn=pick.isbn;
+          if(pick.pages) b.pages=pick.pages;
+          if(pick.publisher) b.publisher=pick.publisher;
+          toast(`${LANGS[prefLang]} utgave valgt`);
+        }
+      }catch(e){}
+    }
+    const c=await extractColor(b.coverUrl); if(c) b.color=c;
+    render(); save();
+  };
+  return r;
+}
+
+/* ═══════════ skanning ═══════════ */
+function stopCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
+
+$("#openScan").onclick=async()=>{
+  const w=el("div");
+  const hint=el("div","hint"); hint.style.marginTop="18px";
+  const manual=el("div","searchin");
+  const inp=el("input"); inp.placeholder="ISBN"; inp.inputMode="numeric"; inp.setAttribute("aria-label","Skriv ISBN");
+  manual.appendChild(inp);
+  const go=el("button","act sig"); go.textContent="Slå opp"; go.style.marginTop="14px";
+  go.onclick=()=>{ const v=inp.value.trim(); if(v.replace(/\D/g,"").length>=10){ stopCam(); searchPanel(v); } };
+  const video=el("video"); video.id="cam"; video.setAttribute("playsinline",""); video.muted=true;
+  w.append(hint,video,manual,go);
+  openPanel("Skann strekkode",w);
+
+  if(!("BarcodeDetector" in window)){
+    hint.textContent="Nettleseren støtter ikke strekkodelesing. Skriv ISBN under.";
+    video.remove(); inp.focus(); return;
+  }
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    video.srcObject=camStream; await video.play();
+    hint.textContent="Hold strekkoden på baksiden av boka foran kameraet";
+    let formats=["ean_13","ean_8"];
+    try{
+      const supported=await BarcodeDetector.getSupportedFormats();
+      formats=formats.filter(f=>supported.includes(f));
+      if(!formats.length) formats=["ean_13"];
+    }catch(e){}
+    const det=new BarcodeDetector({formats});
+    const tick=async()=>{
+      if(!camStream) return;
+      try{
+        const codes=await det.detect(video);
+        if(codes.length){
+          const v=codes[0].rawValue;
+          if(v && v.replace(/\D/g,"").length>=10){ stopCam(); searchPanel(v); return; }
+        }
+      }catch(e){}
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }catch(e){
+    hint.textContent="Fikk ikke tilgang til kameraet her. Skriv ISBN under i stedet.";
+    video.remove(); inp.focus();
+  }
+};
+
+/* ═══════════ diagnose ═══════════ */
+const PROBES = [
+  ["Open Library søk", "https://openlibrary.org/search.json?q=calvino&limit=1", "fetch"],
+  ["Google Books søk", "https://www.googleapis.com/books/v1/volumes?q=calvino&maxResults=1", "fetch"],
+  ["Omslagsbilder", "https://covers.openlibrary.org/b/id/240727-S.jpg", "img"]
+];
+function probeImg(url){
+  return new Promise(res=>{
+    const i=new Image(); const t=setTimeout(()=>res({ok:false,msg:"tidsavbrudd"}),8000);
+    i.onload=()=>{clearTimeout(t);res({ok:true,msg:"lastet"});};
+    i.onerror=()=>{clearTimeout(t);res({ok:false,msg:"blokkert"});};
+    i.src=url+"?cb="+Date.now();
+  });
+}
+async function probeFetch(url){
+  try{
+    const r=await fetch(url,{cache:"no-store"});
+    return r.ok ? {ok:true,msg:"HTTP "+r.status} : {ok:false,msg:"HTTP "+r.status};
+  }catch(e){
+    const m=String(e&&e.message||e);
+    return {ok:false, msg: /Failed to fetch|NetworkError|Load failed/i.test(m) ? "blokkert" : m.slice(0,40)};
+  }
+}
+$("#nettest").onclick=async()=>{
+  const w=el("div");
+  const intro=el("p","blurb"); intro.style.marginTop="18px";
+  intro.textContent="Sjekker om denne siden faktisk får ringe ut til katalogene. Blir alt blokkert, er det sandkassen som stopper det — ikke koden.";
+  const box=el("div","diag");
+  w.append(intro,box);
+  openPanel("Nettverkstest",w);
+
+  const rows = PROBES.map(([name,url])=>{
+    const r=el("div","diagrow");
+    const left=el("div");
+    left.innerHTML=`<div class="nm">${esc(name)}</div><div class="ur">${esc(url.split("?")[0])}</div>`;
+    const st=el("div","st wait"); st.textContent="tester …";
+    r.append(left,st); box.appendChild(r);
+    return st;
+  });
+
+  for(let i=0;i<PROBES.length;i++){
+    const [,url,kind]=PROBES[i];
+    const res = kind==="img" ? await probeImg(url) : await probeFetch(url);
+    rows[i].className="st "+(res.ok?"ok":"no");
+    rows[i].textContent=(res.ok?"OK · ":"NEI · ")+res.msg;
+  }
+  const sum=el("p","blurb"); sum.style.marginTop="16px";
+  const anyOk=rows.some(r=>r.classList.contains("ok"));
+  sum.textContent = anyOk
+    ? "Minst én kilde svarer. Da er katalogtesten din gyldig herfra."
+    : "Alt blokkert. Last ned fila og legg den på egen HTTPS-host — da svarer katalogene, og du får kamera på kjøpet.";
+  w.appendChild(sum);
+};
+
+/* ═══════════ eksport og import ═══════════ */
+$("#export").onclick=()=>{
+  const blob=new Blob([JSON.stringify(books,null,2)],{type:"application/json"});
+  const a=el("a"); a.href=URL.createObjectURL(blob); a.download="bokhylle.json"; a.click();
+  toast("Eksportert");
+};
+$("#import").onclick=()=>$("#importfile").click();
+$("#importfile").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const data=JSON.parse(await f.text());
+    if(!Array.isArray(data)) throw new Error("ikke en liste");
+    const backup=books.slice();
+    const seen=new Set(books.map(b=>(b.isbn||b.title)+"|"+b.author));
+    let added=0;
+    data.forEach(b=>{
+      const k=(b.isbn||b.title)+"|"+b.author;
+      if(seen.has(k)) return;
+      seen.add(k);
+      books.push(Object.assign({id:uid(), rec:false, gaveUp:false, page:0, addedAt:today(),
+        color:fallbackColor(b.title||"?")}, b, {id:uid()}));
+      added++;
+    });
+    await save(); render();
+    toast(`${added} bøker importert`, ()=>{ books=backup; save(); render(); });
+  }catch(err){ toast("Ugyldig fil"); }
+  e.target.value="";
+};
+$("#wipe").onclick=async()=>{
+  const backup=books.slice();
+  books=[]; await save(); await seed();
+  toast("Nullstilt", ()=>{ books=backup; save(); render(); });
+};
+
+/* ═══════════ start ═══════════ */
+(async()=>{
+  if(!HAS_STORE) $("#storenote").textContent="Lagring av · eksporter før du lukker";
+  const had=await load();
+  if(had&&books.length) render(); else await seed();
+  moveRail();
+})();
+</script>
+</body>
+</html>
