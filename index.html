@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="no">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bokhylle</title>
+<title>Bookshelf</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -208,34 +208,34 @@ nav button[aria-selected="true"] .n{opacity:1}
 <div class="wrap">
   <div class="gridlines" id="gridlines"><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header>
-    <div class="mark">Bokhylle<small>UTEN DILLDALL</small></div>
+    <div class="mark">Bookshelf<small>NO FRILLS</small></div>
     <div class="adds">
-      <button class="btn fill" id="openScan">Skann</button>
-      <button class="btn" id="openSearch">Søk</button>
+      <button class="btn fill" id="openScan">Scan</button>
+      <button class="btn" id="openSearch">Search</button>
     </div>
   </header>
 
   <nav id="tabs" role="tablist">
-    <button role="tab" data-view="toread" aria-selected="true"><b>Skal lese</b><span class="n" data-count="toread">00</span></button>
-    <button role="tab" data-view="reading" aria-selected="false"><b>Leser</b><span class="n" data-count="reading">00</span></button>
-    <button role="tab" data-view="rec" aria-selected="false"><b>Anbefalt</b><span class="n" data-count="rec">00</span></button>
-    <button role="tab" data-view="read" aria-selected="false"><b>Lest</b><span class="n" data-count="read">00</span></button>
+    <button role="tab" data-view="toread" aria-selected="true"><b>To read</b><span class="n" data-count="toread">00</span></button>
+    <button role="tab" data-view="reading" aria-selected="false"><b>Reading</b><span class="n" data-count="reading">00</span></button>
+    <button role="tab" data-view="rec" aria-selected="false"><b>Recommended</b><span class="n" data-count="rec">00</span></button>
+    <button role="tab" data-view="read" aria-selected="false"><b>Read</b><span class="n" data-count="read">00</span></button>
   </nav>
   <div class="railwrap"><div class="rail" id="rail"></div></div>
 
   <div class="bar">
-    <span class="lab" id="barlab">Rekkefølge</span>
+    <span class="lab" id="barlab">Order</span>
     <div class="seg" id="seg"></div>
-    <div class="filter"><input id="filter" placeholder="Finn i hylla" aria-label="Filtrer hylla"></div>
+    <div class="filter"><input id="filter" placeholder="Find on the shelf" aria-label="Filter the shelf"></div>
   </div>
 
   <div id="view"></div>
 
   <div class="foot">
-    <button id="nettest">Nettverkstest</button>
-    <button id="export">Eksporter JSON</button>
-    <button id="import">Importer JSON</button>
-    <button id="wipe">Nullstill demo</button>
+    <button id="nettest">Network test</button>
+    <button id="export">Export JSON</button>
+    <button id="import">Import JSON</button>
+    <button id="wipe">Reset demo</button>
     <span id="storenote" class="storenote"></span>
     <input type="file" id="importfile" accept="application/json,.json" hidden>
   </div>
@@ -244,17 +244,17 @@ nav button[aria-selected="true"] .n{opacity:1}
 <div class="scrim" id="scrim"></div>
 <div class="panel" id="panel">
   <div class="panelin">
-    <div class="phead"><span id="ptitle">Bok</span><button class="x" id="closePanel">Lukk ✕</button></div>
+    <div class="phead"><span id="ptitle">Book</span><button class="x" id="closePanel">Close ✕</button></div>
     <div id="pbody"></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-/* ═══════════ konstanter ═══════════ */
-const VIEWS = {toread:"Skal lese", reading:"Leser", rec:"Anbefalt", read:"Lest"};
-const LANGS = {nor:"Norsk", nob:"Norsk", nno:"Nynorsk", eng:"Engelsk", swe:"Svensk", dan:"Dansk",
-               ger:"Tysk", fre:"Fransk", spa:"Spansk", ita:"Italiensk"};
+/* ═══════════ constants ═══════════ */
+const VIEWS = {toread:"To read", reading:"Reading", rec:"Recommended", read:"Read"};
+const LANGS = {nor:"Norwegian", nob:"Norwegian", nno:"Nynorsk", eng:"English", swe:"Swedish", dan:"Danish",
+               ger:"German", fre:"French", spa:"Spanish", ita:"Italian"};
 const KEY="bokhylle:v5", SKEY="bokhylle:settings";
 let books=[], view="toread", sort="added", regFilter="all", regMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
@@ -265,7 +265,7 @@ const uid = () => Math.random().toString(36).slice(2,10);
 const today = () => new Date().toISOString().slice(0,10);
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-/* ═══════════ farge ═══════════ */
+/* ═══════════ color ═══════════ */
 function hashN(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
 const fallbackColor = s => { const h=hashN(s); return `hsl(${h%360} ${28+(h>>8)%26}% ${30+(h>>4)%22}%)`; };
 function readable(c){
@@ -300,10 +300,10 @@ function extractColor(url){
   });
 }
 
-/* ═══════════ KILDEADAPTER ═══════════
-   Alle kilder svarer med samme form, så resten av appen ikke vet
-   hvem som leverte dataene. Bytt ut innmaten her når NB eller
-   Bokbasen viser seg å være best på norske utgaver.
+/* ═══════════ SOURCE ADAPTERS ═══════════
+   All sources answer in the same shape, so the rest of the app
+   never knows who delivered the data. Swap the internals here if
+   NB or Bokbasen turns out to be better for Norwegian editions.
    { title, author, year, pages, isbn, lang, coverUrl, blurb, ref, source }
 ═══════════════════════════════════════ */
 const isIsbn = q => /^[\d\-\s]{10,17}$/.test(q.trim()) && q.replace(/\D/g,"").length>=10;
@@ -318,7 +318,7 @@ const SOURCES = {
         + "first_publish_year,cover_i,number_of_pages_median,isbn,language&q=" + encodeURIComponent(query);
       const j = await (await fetch(url)).json();
       return (j.docs||[]).map(d => ({
-        title:d.title, author:(d.author_name||["Ukjent"])[0], year:d.first_publish_year||null,
+        title:d.title, author:(d.author_name||["Unknown"])[0], year:d.first_publish_year||null,
         pages:d.number_of_pages_median||260, isbn:(d.isbn||[])[0]||null,
         lang:(d.language||[])[0]||null, coverUrl:olCover(d.cover_i,"M"),
         coverBig:olCover(d.cover_i,"L"), blurb:null, ref:d.key, source:"ol"
@@ -356,7 +356,7 @@ const SOURCES = {
         const ids = v.industryIdentifiers||[];
         return {
           title:v.title + (v.subtitle ? ": "+v.subtitle : ""),
-          author:(v.authors||["Ukjent"])[0], year:(v.publishedDate||"").slice(0,4)||null,
+          author:(v.authors||["Unknown"])[0], year:(v.publishedDate||"").slice(0,4)||null,
           pages:v.pageCount||260,
           isbn:(ids.find(i=>i.type==="ISBN_13")||ids[0]||{}).identifier||null,
           lang:{no:"nor",en:"eng",sv:"swe",da:"dan",de:"ger",fr:"fre"}[v.language]||v.language||null,
@@ -372,10 +372,10 @@ const SOURCES = {
   }
 };
 
-/* ═══════════ lagring ═══════════
-   window.storage finnes bare inne i Claude. Utenfor faller vi
-   tilbake til minne — da er JSON-eksport/import redningen.
-   I et ekte repo byttes dette ut med IndexedDB.                */
+/* ═══════════ storage ═══════════
+   window.storage only exists inside Claude. Outside we fall
+   back to memory — then JSON export/import is the lifeline.
+   In a real repo this gets replaced with IndexedDB.           */
 const MEM={};
 const HAS_STORE = typeof window!=="undefined" && !!window.storage;
 const STORE = HAS_STORE ? window.storage : {
@@ -394,7 +394,7 @@ const finYear = b => (b.finished||"").slice(0,4) || b.finishedYear || null;
 const finKey  = b => b.finished || (b.finishedYear ? b.finishedYear+"-00-00" : "0000-00-00");
 const isDone  = b => b.shelf==="read" && !b.gaveUp;
 
-/* ═══════════ frø ═══════════ */
+/* ═══════════ seed ═══════════ */
 const SEED = [
   {title:"Grid Systems in Graphic Design", author:"Josef Müller-Brockmann", shelf:"read", rec:1, pages:176, ago:410},
   {title:"The Shape of Time", author:"George Kubler", shelf:"read", rec:1, pages:136, ago:350},
@@ -439,7 +439,7 @@ async function seed(){
   save();
 }
 
-/* ═══════════ utvalg ═══════════ */
+/* ═══════════ selection ═══════════ */
 function matches(b){
   if(!filterText) return true;
   const q = filterText.toLowerCase();
@@ -454,13 +454,13 @@ function listFor(v){
   }
   const by = {
     added:(a,b)=>(a.addedAt||"").localeCompare(b.addedAt||""),
-    author:(a,b)=>(a.author||"").localeCompare(b.author||"","nb"),
+    author:(a,b)=>(a.author||"").localeCompare(b.author||"","en"),
     pages:(a,b)=>(a.pages||0)-(b.pages||0)
   }[sort];
   return l.slice().sort(by);
 }
 
-/* ═══════════ tegning ═══════════ */
+/* ═══════════ rendering ═══════════ */
 const spineWidth = p => Math.round(Math.max(15, Math.min(58, 15 + Math.sqrt(p||220)*1.75)));
 const spineHeight = b => Math.round(186 + (hashN(b.title)%56));
 
@@ -476,8 +476,8 @@ function render(){
   if(!list.length){
     const e=el("div","empty");
     e.innerHTML = view==="read"
-      ? `<b>Ingen ført ennå</b><p>Bøker havner her når du merker dem som lest eller gitt opp.</p>`
-      : `<b>Tom hylle</b><p>Skann strekkoden på en bok du har foran deg, eller søk på tittel.</p>`;
+      ? `<b>Nothing logged yet</b><p>Books end up here when you mark them as read or given up.</p>`
+      : `<b>Empty shelf</b><p>Scan the barcode on a book in front of you, or search by title.</p>`;
     host.appendChild(e);
   } else if(view==="read"){
     host.appendChild(buildStats());
@@ -494,10 +494,10 @@ function buildBar(){
   const seg=$("#seg");
   seg.innerHTML="";
   const opts = view==="read"
-    ? [["shelf","Hylle"],["list","Liste"],["gave","Gitt opp"]]
-    : [["added","Kronologisk"],["author","Forfatter"],["pages","Tykkelse"]];
+    ? [["shelf","Shelf"],["list","List"],["gave","Gave up"]]
+    : [["added","Chronological"],["author","Author"],["pages","Thickness"]];
   const cur = view==="read" ? (regFilter==="gave" ? "gave" : regMode) : sort;
-  $("#barlab").textContent = view==="read" ? "Vis" : "Rekkefølge";
+  $("#barlab").textContent = view==="read" ? "Show" : "Order";
   opts.forEach(([k,t])=>{
     const b=el("button"); b.textContent=t; b.dataset.k=k;
     b.setAttribute("aria-pressed", String(k===cur));
@@ -524,7 +524,7 @@ function buildShelf(list, label){
     let tall=0, used=0;
     row.forEach(b=>{ tall=Math.max(tall,spineHeight(b)); used+=spineWidth(b.pages)+3; rb.appendChild(makeSpine(b,n++)); });
     const avail = Math.max(240, $("#view").clientWidth || innerWidth-40);
-    if(avail-used > 40){                       // bokstøtte der hylla ikke er full
+    if(avail-used > 40){                       // bookend where the shelf isn't full
       const be=el("div","bookend"); be.style.height=(tall*0.55)+"px"; rb.appendChild(be);
     }
     const line=el("div","rowline");
@@ -544,7 +544,7 @@ function makeSpine(b,i){
   const btn=el("button","spine"+(b.gaveUp?" gave":"")+(matches(b)?"":" dim"));
   btn.style.width=w+"px"; btn.style.height=h+"px";
   if(w<24) btn.dataset.narrow="1";
-  btn.setAttribute("aria-label", `${b.title} av ${b.author}`);
+  btn.setAttribute("aria-label", `${b.title} by ${b.author}`);
   const body=el("div","body"); body.style.background=b.color;
   const t=el("div","t"); t.textContent=b.title; t.style.color=readable(b.color);
   body.appendChild(t);
@@ -559,17 +559,17 @@ function makeSpine(b,i){
   return btn;
 }
 
-/* leseåret som fysisk hylle */
+/* the reading year as a physical shelf */
 function buildYearShelves(list){
   const box=el("div");
   const years={};
-  list.forEach(b=>{ const y=finYear(b)||"Udatert"; (years[y]=years[y]||[]).push(b); });
+  list.forEach(b=>{ const y=finYear(b)||"Undated"; (years[y]=years[y]||[]).push(b); });
   Object.keys(years).sort((a,c)=>{
-    if(a==="Udatert") return 1; if(c==="Udatert") return -1; return c.localeCompare(a);
+    if(a==="Undated") return 1; if(c==="Undated") return -1; return c.localeCompare(a);
   }).forEach(y=>{
     const head=el("div","yearhead");
     const pages=years[y].reduce((s,b)=>s+(b.gaveUp?(b.page||0):(b.pages||0)),0);
-    head.innerHTML=`<div class="y">${esc(y)}</div><div class="c">${years[y].length} bøker · ${pages.toLocaleString("nb-NO")} sider</div>`;
+    head.innerHTML=`<div class="y">${esc(y)}</div><div class="c">${years[y].length} books · ${pages.toLocaleString("en-US")} pages</div>`;
     box.appendChild(head);
     const st=el("div","stack");
     buildShelf(years[y], false).forEach(n=>st.appendChild(n));
@@ -582,20 +582,20 @@ function buildRegister(list){
   const box=el("div");
   let group=null, reg=null, i=list.length;
   list.forEach(b=>{
-    const y=finYear(b)||"Udatert";
+    const y=finYear(b)||"Undated";
     if(y!==group){
       group=y;
       const h=el("div","yearhead"); h.innerHTML=`<div class="y">${esc(y)}</div>`; box.appendChild(h);
       reg=el("div","reg"); box.appendChild(reg);
     }
     const days=(b.started&&b.finished)?Math.max(1,Math.round((new Date(b.finished)-new Date(b.started))/864e5)):null;
-    const when=b.finished||(b.finishedYear?"≈ "+b.finishedYear:"udatert");
-    const extent=b.gaveUp?`s. ${b.page||0} av ${b.pages||"?"}`:`${b.pages||"—"} s.${days?` · ${days} d`:""}`;
+    const when=b.finished||(b.finishedYear?"≈ "+b.finishedYear:"undated");
+    const extent=b.gaveUp?`p. ${b.page||0} of ${b.pages||"?"}`:`${b.pages||"—"} pp.${days?` · ${days} d`:""}`;
     const r=el("button","regrow"+(b.gaveUp?" gave":"")+(matches(b)?"":" dim"));
     if(!matches(b)) r.style.opacity=".25";
     r.innerHTML=`<div class="idx">${String(i--).padStart(2,"0")}</div>
       <div><div class="ti">${esc(b.title)}${b.rec?" ●":""}</div>
-        <div class="au">${esc(b.author)}${b.gaveUp?' <span class="tagx">Gitt opp</span>':""}</div></div>
+        <div class="au">${esc(b.author)}${b.gaveUp?' <span class="tagx">Gave up</span>':""}</div></div>
       <div class="dt">${esc(when)}<br>${extent}</div>`;
     r.onclick=()=>openBook(b,r);
     reg.appendChild(r);
@@ -610,9 +610,9 @@ function buildStats(){
   const fin=books.filter(b=>isDone(b)&&b.started&&b.finished);
   const avg=fin.length?Math.round(fin.reduce((s,b)=>s+(new Date(b.finished)-new Date(b.started))/864e5,0)/fin.length):0;
   const d=el("div","stats");
-  d.innerHTML=`<div class="stat"><div class="v">${String(done).padStart(2,"0")}</div><div class="k">Fullført i ${yr}</div></div>
-    <div class="stat"><div class="v">${pages.toLocaleString("nb-NO")}</div><div class="k">Sider totalt</div></div>
-    <div class="stat"><div class="v">${String(avg).padStart(2,"0")}</div><div class="k">Snitt dager per bok</div></div>`;
+  d.innerHTML=`<div class="stat"><div class="v">${String(done).padStart(2,"0")}</div><div class="k">Finished in ${yr}</div></div>
+    <div class="stat"><div class="v">${pages.toLocaleString("en-US")}</div><div class="k">Total pages</div></div>
+    <div class="stat"><div class="v">${String(avg).padStart(2,"0")}</div><div class="k">Avg. days per book</div></div>`;
   return d;
 }
 
@@ -623,7 +623,7 @@ function moveRail(){
   $("#gridlines").style.top=document.querySelector("header").offsetHeight+"px";
 }
 
-/* ═══════════ hendelser ═══════════ */
+/* ═══════════ events ═══════════ */
 $("#tabs").onclick=e=>{
   const b=e.target.closest("[data-view]"); if(!b) return;
   view=b.dataset.view;
@@ -659,7 +659,7 @@ addEventListener("keydown",e=>{ if(e.key==="Escape") closePanel(); });
 function toast(msg, undo){
   const t=$("#toast"); t.innerHTML="";
   t.appendChild(document.createTextNode(msg));
-  if(undo){ const u=el("button"); u.textContent="Angre"; u.onclick=()=>{ undo(); t.classList.remove("on"); }; t.appendChild(u); }
+  if(undo){ const u=el("button"); u.textContent="Undo"; u.onclick=()=>{ undo(); t.classList.remove("on"); }; t.appendChild(u); }
   t.classList.add("on");
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"), undo?5200:1700);
 }
@@ -684,19 +684,19 @@ function unfold(src,b,done){
     .onfinish=()=>{ f.remove(); if(flyer===f) flyer=null; }; };
 }
 
-/* ═══════════ bokdetalj ═══════════ */
+/* ═══════════ book detail ═══════════ */
 async function openBook(b,src){
-  unfold(src,b,()=>openPanel(b.gaveUp?"Gitt opp":VIEWS[b.shelf],buildDetail(b)));
+  unfold(src,b,()=>openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf],buildDetail(b)));
   if(!b.blurb && b.ref && b.src && SOURCES[b.src].blurb){
     try{
       const t=await SOURCES[b.src].blurb(b.ref);
       if(t){ b.blurb=t; save();
         const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent=t; }
-      else { const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent="Ingen omtale registrert."; }
+      else { const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent="No description on record."; }
     }catch(e){}
   }
 }
-function refresh(b){ save(); render(); openPanel(b.gaveUp?"Gitt opp":VIEWS[b.shelf], buildDetail(b)); }
+function refresh(b){ save(); render(); openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf], buildDetail(b)); }
 
 function buildDetail(b){
   const wrap=el("div","detail");
@@ -709,28 +709,28 @@ function buildDetail(b){
   const h=el("h2"); h.textContent=b.title;
   right.appendChild(h);
   if(b.origTitle && b.origTitle!==b.title){
-    const o=el("div","orig"); o.textContent="Originaltittel: "+b.origTitle; right.appendChild(o);
+    const o=el("div","orig"); o.textContent="Original title: "+b.origTitle; right.appendChild(o);
   }
   const by=el("div","byline");
   by.textContent=[b.author, b.year, b.lang?(LANGS[b.lang]||b.lang):null, b.publisher].filter(Boolean).join(" · ");
   const blurb=el("p","blurb"); blurb.dataset.blurb=b.id;
-  blurb.textContent=b.blurb||(b.ref?"Henter omtale …":"Ingen omtale.");
+  blurb.textContent=b.blurb||(b.ref?"Fetching description …":"No description.");
   right.append(by,blurb);
 
   const meta=el("div","meta");
-  [["Sider",b.pages||"—"],["ISBN",b.isbn||"—"],["Kilde",b.src?SOURCES[b.src].label:"—"],["Lagt til",b.addedAt||"—"]]
+  [["Pages",b.pages||"—"],["ISBN",b.isbn||"—"],["Source",b.src?SOURCES[b.src].label:"—"],["Added",b.addedAt||"—"]]
     .forEach(([k,v])=>{ const r=el("div","row"); r.innerHTML=`<span>${k}</span><span class="mono">${esc(v)}</span>`; meta.appendChild(r); });
   right.appendChild(meta);
 
   const df=el("div","datefix");
-  [["Startet","started"],["Ferdig","finished"]].forEach(([lab,key])=>{
+  [["Started","started"],["Finished","finished"]].forEach(([lab,key])=>{
     const l=el("label"); l.textContent=lab;
     const i=el("input"); i.type="date"; i.value=b[key]||"";
     i.onchange=()=>{ b[key]=i.value||null; if(key==="finished"&&i.value) b.finishedYear=null; refresh(b); };
     l.appendChild(i); df.appendChild(l);
   });
-  const yl=el("label"); yl.textContent="Eller bare år";
-  const yi=el("input"); yi.type="number"; yi.min=1400; yi.max=2100; yi.placeholder="ÅÅÅÅ";
+  const yl=el("label"); yl.textContent="Or just the year";
+  const yi=el("input"); yi.type="number"; yi.min=1400; yi.max=2100; yi.placeholder="YYYY";
   yi.style.width="86px"; yi.value=b.finishedYear||"";
   yi.onchange=()=>{ b.finishedYear=yi.value?String(yi.value):null; if(b.finishedYear) b.finished=null; refresh(b); };
   yl.appendChild(yi); df.appendChild(yl);
@@ -738,35 +738,35 @@ function buildDetail(b){
 
   if(b.shelf==="reading"||b.gaveUp){
     const pr=el("div","pagerow");
-    const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`s. ${b.page||0}/${b.pages}`;
+    const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`p. ${b.page||0}/${b.pages}`;
     const range=el("input"); range.type="range"; range.min=0; range.max=b.pages||300; range.value=b.page||0;
-    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`s. ${b.page}/${b.pages}`; };
+    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`p. ${b.page}/${b.pages}`; };
     range.onchange=()=>{ save(); render(); };
     pr.append(lbl,range); right.appendChild(pr);
   }
 
-  // primærhandlinger
+  // primary actions
   const acts=el("div","acts");
   const add=(box,cls,txt,fn)=>{ const x=el("button","act "+cls); x.textContent=txt; x.onclick=fn; box.appendChild(x); };
   if(b.shelf!=="reading")
-    add(acts,"sig", b.gaveUp?"Ta den opp igjen":"Begynn å lese",()=>{
+    add(acts,"sig", b.gaveUp?"Pick it up again":"Start reading",()=>{
       b.shelf="reading"; b.gaveUp=false; b.started=b.started||today(); b.finished=null; b.finishedYear=null;
-      refresh(b); toast("Leser nå"); });
+      refresh(b); toast("Reading now"); });
   if(b.shelf==="reading"){
-    add(acts,"","Ferdig lest",()=>{ b.shelf="read"; b.gaveUp=false; b.finished=today(); b.page=b.pages; refresh(b); toast("Ført i registeret"); });
-    add(acts,"quiet","Gi opp",()=>{ b.shelf="read"; b.gaveUp=true; b.finished=today(); refresh(b); toast("Ført som gitt opp"); });
+    add(acts,"","Finished reading",()=>{ b.shelf="read"; b.gaveUp=false; b.finished=today(); b.page=b.pages; refresh(b); toast("Logged in the register"); });
+    add(acts,"quiet","Give up",()=>{ b.shelf="read"; b.gaveUp=true; b.finished=today(); refresh(b); toast("Logged as given up"); });
   }
-  add(acts, b.rec?"on":"", b.rec?"Anbefalt ●":"Anbefal",()=>{ b.rec=!b.rec; refresh(b); });
+  add(acts, b.rec?"on":"", b.rec?"Recommended ●":"Recommend",()=>{ b.rec=!b.rec; refresh(b); });
   right.appendChild(acts);
 
-  // sekundære
+  // secondary
   const more=el("div","acts second");
-  if(b.shelf!=="toread") add(more,"quiet","→ Skal lese",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
-  if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Bytt utgave",()=>openEditions(b));
-  add(more,"quiet","Fjern",()=>{
+  if(b.shelf!=="toread") add(more,"quiet","→ To read",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
+  if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Change edition",()=>openEditions(b));
+  add(more,"quiet","Remove",()=>{
     const idx=books.indexOf(b); lastRemoved={b,idx};
     books=books.filter(x=>x.id!==b.id); save(); render(); closePanel();
-    toast("Fjernet", ()=>{ books.splice(lastRemoved.idx,0,lastRemoved.b); save(); render(); });
+    toast("Removed", ()=>{ books.splice(lastRemoved.idx,0,lastRemoved.b); save(); render(); });
   });
   right.appendChild(more);
 
@@ -774,24 +774,24 @@ function buildDetail(b){
   return wrap;
 }
 
-/* ═══════════ utgaver ═══════════ */
+/* ═══════════ editions ═══════════ */
 async function openEditions(b){
   const w=el("div");
   const bar=el("div","optline"); bar.style.marginTop="16px";
-  const hint=el("div","hint"); hint.textContent="Henter utgaver …";
+  const hint=el("div","hint"); hint.textContent="Fetching editions …";
   const results=el("div"); results.style.marginTop="8px";
   w.append(bar,hint,results);
-  openPanel("Velg utgave",w);
-  if(!b.ref){ hint.textContent="Boka er ikke koblet til en katalog."; return; }
+  openPanel("Choose edition",w);
+  if(!b.ref){ hint.textContent="This book isn't linked to a catalog."; return; }
 
   let all=[];
   try{ all=await SOURCES[b.src].editions(b.ref); }catch(e){}
-  if(!all.length){ hint.textContent="Fant ingen utgaver."; return; }
+  if(!all.length){ hint.textContent="No editions found."; return; }
 
   const present=[...new Set(all.flatMap(e=>e.langs))].filter(l=>LANGS[l]);
   let filter = present.includes(prefLang) ? prefLang : "all";
   const seg=el("div","seg");
-  [["all","Alle"],...present.map(l=>[l,LANGS[l]])].forEach(([k,lab])=>{
+  [["all","All"],...present.map(l=>[l,LANGS[l]])].forEach(([k,lab])=>{
     const x=el("button"); x.textContent=lab; x.dataset.k=k;
     x.setAttribute("aria-pressed",String(k===filter));
     x.onclick=()=>{ filter=k; seg.querySelectorAll("button").forEach(y=>y.setAttribute("aria-pressed",String(y.dataset.k===k))); draw(); };
@@ -802,13 +802,13 @@ async function openEditions(b){
   function draw(){
     const list=(filter==="all"?all:all.filter(e=>e.langs.includes(filter)))
       .sort((a,c)=>(c.coverUrl?1:0)-(a.coverUrl?1:0));
-    hint.textContent=`${list.length} utgaver`;
+    hint.textContent=`${list.length} editions`;
     results.innerHTML="";
     list.slice(0,40).forEach(e=>{
       const r=el("button","res");
       const th=el("div","th"); if(e.coverUrl) th.style.backgroundImage=`url(${e.coverUrl})`;
       const info=el("div");
-      const sub=[e.langs.map(l=>LANGS[l]||l).join("/"),e.publisher,e.year,e.pages?e.pages+" s.":null].filter(Boolean).join(" · ");
+      const sub=[e.langs.map(l=>LANGS[l]||l).join("/"),e.publisher,e.year,e.pages?e.pages+" pp.":null].filter(Boolean).join(" · ");
       info.innerHTML=`<div class="ti">${esc(e.title)}</div><div class="au">${esc(sub)}</div>`;
       const a=el("div","add"); a.textContent="→";
       r.append(th,info,a);
@@ -821,7 +821,7 @@ async function openEditions(b){
         if(e.year) b.year=e.year;
         if(e.publisher) b.publisher=e.publisher;
         const c=await extractColor(b.coverUrl); if(c) b.color=c;
-        refresh(b); toast("Utgave byttet");
+        refresh(b); toast("Edition changed");
       };
       results.appendChild(r);
     });
@@ -829,11 +829,11 @@ async function openEditions(b){
   draw();
 }
 
-/* ═══════════ søk ═══════════ */
+/* ═══════════ search ═══════════ */
 function searchPanel(prefill){
   const w=el("div");
   const box=el("div","searchin");
-  const inp=el("input"); inp.placeholder="Tittel eller ISBN"; inp.setAttribute("aria-label","Søk etter bok");
+  const inp=el("input"); inp.placeholder="Title or ISBN"; inp.setAttribute("aria-label","Search for a book");
   if(prefill) inp.value=prefill;
   box.appendChild(inp);
 
@@ -851,30 +851,30 @@ function searchPanel(prefill){
     });
     return [lab,seg];
   };
-  l1.append(...mk("Utgave på",[["nor","Norsk"],["eng","Engelsk"],["any","Alle"]],()=>prefLang,k=>{prefLang=k;saveSettings();}));
-  l2.append(...mk("Katalog",[["ol","Open Library"],["gb","Google Books"]],()=>source,k=>{source=k;saveSettings();}));
+  l1.append(...mk("Edition in",[["nor","Norwegian"],["eng","English"],["any","Any"]],()=>prefLang,k=>{prefLang=k;saveSettings();}));
+  l2.append(...mk("Catalog",[["ol","Open Library"],["gb","Google Books"]],()=>source,k=>{source=k;saveSettings();}));
   opts.append(l1,l2);
 
-  const hint=el("div","hint"); hint.textContent="Skriv minst tre tegn";
+  const hint=el("div","hint"); hint.textContent="Type at least three characters";
   const results=el("div");
   w.append(box,opts,hint,results);
-  openPanel("Legg til bok",w);
+  openPanel("Add book",w);
   setTimeout(()=>inp.focus(),380);
 
   let timer;
   async function go(now){
     clearTimeout(timer);
     const q=inp.value.trim();
-    if(q.length<3){ results.innerHTML=""; hint.textContent="Skriv minst tre tegn"; return; }
-    hint.textContent = isIsbn(q) ? "Slår opp ISBN …" : "Søker …";
+    if(q.length<3){ results.innerHTML=""; hint.textContent="Type at least three characters"; return; }
+    hint.textContent = isIsbn(q) ? "Looking up ISBN …" : "Searching …";
     timer=setTimeout(async()=>{
       try{
         const hits=await SOURCES[source].search(q);
-        hint.textContent = hits.length ? `${hits.length} treff i ${SOURCES[source].label}` : "Ingen treff. Prøv en annen skrivemåte eller bytt katalog.";
+        hint.textContent = hits.length ? `${hits.length} results in ${SOURCES[source].label}` : "No results. Try a different spelling or switch catalogs.";
         results.innerHTML="";
         hits.forEach(h=>results.appendChild(resultRow(h)));
       }catch(e){
-        hint.textContent=`Fikk ikke svar fra ${SOURCES[source].label}. Prøv den andre katalogen.`;
+        hint.textContent=`No response from ${SOURCES[source].label}. Try the other catalog.`;
       }
     }, now?0:340);
   }
@@ -901,8 +901,8 @@ function resultRow(hit){
       addedAt:today(), color:fallbackColor(hit.title)
     };
     books.push(b); render(); save(); closePanel();
-    toast(`Lagt i ${VIEWS[b.shelf]}`);
-    // riktig utgave på ønsket språk
+    toast(`Added to ${VIEWS[b.shelf]}`);
+    // the right edition in the preferred language
     if(prefLang!=="any" && b.ref && SOURCES[b.src].canEditions && b.lang!==prefLang){
       try{
         const eds=await SOURCES[b.src].editions(b.ref);
@@ -914,7 +914,7 @@ function resultRow(hit){
           if(pick.isbn) b.isbn=pick.isbn;
           if(pick.pages) b.pages=pick.pages;
           if(pick.publisher) b.publisher=pick.publisher;
-          toast(`${LANGS[prefLang]} utgave valgt`);
+          toast(`${LANGS[prefLang]} edition selected`);
         }
       }catch(e){}
     }
@@ -924,29 +924,29 @@ function resultRow(hit){
   return r;
 }
 
-/* ═══════════ skanning ═══════════ */
+/* ═══════════ scanning ═══════════ */
 function stopCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
 
 $("#openScan").onclick=async()=>{
   const w=el("div");
   const hint=el("div","hint"); hint.style.marginTop="18px";
   const manual=el("div","searchin");
-  const inp=el("input"); inp.placeholder="ISBN"; inp.inputMode="numeric"; inp.setAttribute("aria-label","Skriv ISBN");
+  const inp=el("input"); inp.placeholder="ISBN"; inp.inputMode="numeric"; inp.setAttribute("aria-label","Type ISBN");
   manual.appendChild(inp);
-  const go=el("button","act sig"); go.textContent="Slå opp"; go.style.marginTop="14px";
+  const go=el("button","act sig"); go.textContent="Look up"; go.style.marginTop="14px";
   go.onclick=()=>{ const v=inp.value.trim(); if(v.replace(/\D/g,"").length>=10){ stopCam(); searchPanel(v); } };
   const video=el("video"); video.id="cam"; video.setAttribute("playsinline",""); video.muted=true;
   w.append(hint,video,manual,go);
-  openPanel("Skann strekkode",w);
+  openPanel("Scan barcode",w);
 
   if(!("BarcodeDetector" in window)){
-    hint.textContent="Nettleseren støtter ikke strekkodelesing. Skriv ISBN under.";
+    hint.textContent="Your browser doesn't support barcode scanning. Type the ISBN below.";
     video.remove(); inp.focus(); return;
   }
   try{
     camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
     video.srcObject=camStream; await video.play();
-    hint.textContent="Hold strekkoden på baksiden av boka foran kameraet";
+    hint.textContent="Hold the barcode on the back of the book up to the camera";
     let formats=["ean_13","ean_8"];
     try{
       const supported=await BarcodeDetector.getSupportedFormats();
@@ -967,22 +967,22 @@ $("#openScan").onclick=async()=>{
     };
     requestAnimationFrame(tick);
   }catch(e){
-    hint.textContent="Fikk ikke tilgang til kameraet her. Skriv ISBN under i stedet.";
+    hint.textContent="Couldn't access the camera here. Type the ISBN below instead.";
     video.remove(); inp.focus();
   }
 };
 
-/* ═══════════ diagnose ═══════════ */
+/* ═══════════ diagnostics ═══════════ */
 const PROBES = [
-  ["Open Library søk", "https://openlibrary.org/search.json?q=calvino&limit=1", "fetch"],
-  ["Google Books søk", "https://www.googleapis.com/books/v1/volumes?q=calvino&maxResults=1", "fetch"],
-  ["Omslagsbilder", "https://covers.openlibrary.org/b/id/240727-S.jpg", "img"]
+  ["Open Library search", "https://openlibrary.org/search.json?q=calvino&limit=1", "fetch"],
+  ["Google Books search", "https://www.googleapis.com/books/v1/volumes?q=calvino&maxResults=1", "fetch"],
+  ["Cover images", "https://covers.openlibrary.org/b/id/240727-S.jpg", "img"]
 ];
 function probeImg(url){
   return new Promise(res=>{
-    const i=new Image(); const t=setTimeout(()=>res({ok:false,msg:"tidsavbrudd"}),8000);
-    i.onload=()=>{clearTimeout(t);res({ok:true,msg:"lastet"});};
-    i.onerror=()=>{clearTimeout(t);res({ok:false,msg:"blokkert"});};
+    const i=new Image(); const t=setTimeout(()=>res({ok:false,msg:"timed out"}),8000);
+    i.onload=()=>{clearTimeout(t);res({ok:true,msg:"loaded"});};
+    i.onerror=()=>{clearTimeout(t);res({ok:false,msg:"blocked"});};
     i.src=url+"?cb="+Date.now();
   });
 }
@@ -992,22 +992,22 @@ async function probeFetch(url){
     return r.ok ? {ok:true,msg:"HTTP "+r.status} : {ok:false,msg:"HTTP "+r.status};
   }catch(e){
     const m=String(e&&e.message||e);
-    return {ok:false, msg: /Failed to fetch|NetworkError|Load failed/i.test(m) ? "blokkert" : m.slice(0,40)};
+    return {ok:false, msg: /Failed to fetch|NetworkError|Load failed/i.test(m) ? "blocked" : m.slice(0,40)};
   }
 }
 $("#nettest").onclick=async()=>{
   const w=el("div");
   const intro=el("p","blurb"); intro.style.marginTop="18px";
-  intro.textContent="Sjekker om denne siden faktisk får ringe ut til katalogene. Blir alt blokkert, er det sandkassen som stopper det — ikke koden.";
+  intro.textContent="Checks whether this page is actually allowed to call out to the catalogs. If everything is blocked, it's the sandbox stopping it — not the code.";
   const box=el("div","diag");
   w.append(intro,box);
-  openPanel("Nettverkstest",w);
+  openPanel("Network test",w);
 
   const rows = PROBES.map(([name,url])=>{
     const r=el("div","diagrow");
     const left=el("div");
     left.innerHTML=`<div class="nm">${esc(name)}</div><div class="ur">${esc(url.split("?")[0])}</div>`;
-    const st=el("div","st wait"); st.textContent="tester …";
+    const st=el("div","st wait"); st.textContent="testing …";
     r.append(left,st); box.appendChild(r);
     return st;
   });
@@ -1016,28 +1016,28 @@ $("#nettest").onclick=async()=>{
     const [,url,kind]=PROBES[i];
     const res = kind==="img" ? await probeImg(url) : await probeFetch(url);
     rows[i].className="st "+(res.ok?"ok":"no");
-    rows[i].textContent=(res.ok?"OK · ":"NEI · ")+res.msg;
+    rows[i].textContent=(res.ok?"OK · ":"NO · ")+res.msg;
   }
   const sum=el("p","blurb"); sum.style.marginTop="16px";
   const anyOk=rows.some(r=>r.classList.contains("ok"));
   sum.textContent = anyOk
-    ? "Minst én kilde svarer. Da er katalogtesten din gyldig herfra."
-    : "Alt blokkert. Last ned fila og legg den på egen HTTPS-host — da svarer katalogene, og du får kamera på kjøpet.";
+    ? "At least one source responds. Then your catalog test is valid from here."
+    : "Everything blocked. Download the file and put it on your own HTTPS host — then the catalogs respond, and you get the camera as a bonus.";
   w.appendChild(sum);
 };
 
-/* ═══════════ eksport og import ═══════════ */
+/* ═══════════ export and import ═══════════ */
 $("#export").onclick=()=>{
   const blob=new Blob([JSON.stringify(books,null,2)],{type:"application/json"});
-  const a=el("a"); a.href=URL.createObjectURL(blob); a.download="bokhylle.json"; a.click();
-  toast("Eksportert");
+  const a=el("a"); a.href=URL.createObjectURL(blob); a.download="bookshelf.json"; a.click();
+  toast("Exported");
 };
 $("#import").onclick=()=>$("#importfile").click();
 $("#importfile").onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{
     const data=JSON.parse(await f.text());
-    if(!Array.isArray(data)) throw new Error("ikke en liste");
+    if(!Array.isArray(data)) throw new Error("not a list");
     const backup=books.slice();
     const seen=new Set(books.map(b=>(b.isbn||b.title)+"|"+b.author));
     let added=0;
@@ -1050,19 +1050,19 @@ $("#importfile").onchange=async e=>{
       added++;
     });
     await save(); render();
-    toast(`${added} bøker importert`, ()=>{ books=backup; save(); render(); });
-  }catch(err){ toast("Ugyldig fil"); }
+    toast(`${added} books imported`, ()=>{ books=backup; save(); render(); });
+  }catch(err){ toast("Invalid file"); }
   e.target.value="";
 };
 $("#wipe").onclick=async()=>{
   const backup=books.slice();
   books=[]; await save(); await seed();
-  toast("Nullstilt", ()=>{ books=backup; save(); render(); });
+  toast("Reset", ()=>{ books=backup; save(); render(); });
 };
 
 /* ═══════════ start ═══════════ */
 (async()=>{
-  if(!HAS_STORE) $("#storenote").textContent="Lagring av · eksporter før du lukker";
+  if(!HAS_STORE) $("#storenote").textContent="Storage off · export before you close";
   const had=await load();
   if(had&&books.length) render(); else await seed();
   moveRail();
