@@ -496,9 +496,12 @@ const SOURCES = {
   },
   gb: {
     label:"Google Books", canEditions:false,
-    async search(q){
+    /* opts.anyLang drops the language restriction: hunting for a cover, an
+       edition in the wrong language still carries the right jacket, and the
+       restriction is what makes the search come back empty. */
+    async search(q,opts){
       const query = isIsbn(q) ? `isbn:${q.replace(/\D/g,"")}` : q;
-      const lang = prefLang==="any" ? "" : `&langRestrict=${prefLang==="nor"?"no":"en"}`;
+      const lang = (prefLang==="any"||(opts&&opts.anyLang)) ? "" : `&langRestrict=${prefLang==="nor"?"no":"en"}`;
       const url = `https://www.googleapis.com/books/v1/volumes?maxResults=14&q=${encodeURIComponent(query)}${lang}`;
       const j = await (await fetch(url)).json();
       return (j.items||[]).map(it => {
@@ -523,6 +526,193 @@ const SOURCES = {
     async blurb(){ return null; }
   }
 };
+
+/* ═══════════ COVERS ═══════════
+   Every book gets a jacket. Which books have art is something the two
+   catalogues disagree about, and a search hit that carries no cover is the
+   common case rather than the exception — so a book that arrives bare is
+   chased through the cover server by ISBN, the work's other editions, and
+   then both catalogues again, keeping the first image that actually loads.
+
+   When all of that comes back empty — small presses, books entered by hand —
+   we set the title ourselves. An empty rectangle where a cover belongs reads
+   as a broken app rather than as a book without art, and a drawn jacket is
+   the honest answer: this is the book, we just don't have the picture.
+═══════════════════════════════════════ */
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* ?default=false matters: without it the cover server answers a miss with a
+   1×1 pixel, which loads happily and paints nothing. */
+const olIsbnCover = (isbn,s) => {
+  const n=String(isbn||"").replace(/[^\dXx]/g,"");
+  return n.length>=10 ? `https://covers.openlibrary.org/b/isbn/${n}-${s}.jpg?default=false` : null;
+};
+
+/* A stored cover URL is a guess, not a fact — jackets vanish from both
+   catalogues. Nothing is kept or drawn before it has been seen to load, and
+   anything pixel-sized counts as a miss. */
+function imageOk(url){
+  return new Promise(res=>{
+    if(!url) return res(false);
+    const im=new Image();
+    im.onload=()=>res(im.naturalWidth>2 && im.naturalHeight>2);
+    im.onerror=()=>res(false);
+    im.src=url;
+  });
+}
+
+/* Searching by title can answer with a different book that happens to share
+   a word, and a wrong jacket is worse than none. Subtitles and punctuation
+   differ between catalogues, so compare the stem of the title and the
+   author's last name, which is the part both agree on. */
+const normTitle = s => String(s||"").toLowerCase().split(/[:(]/)[0]
+  .replace(/[^\p{Letter}\p{Number} ]+/gu," ").replace(/\s+/g," ").trim();
+const lastName = s => String(s||"").toLowerCase()
+  .replace(/[^\p{Letter} ]+/gu," ").trim().split(/\s+/).pop()||"";
+function sameBook(b,hit){
+  const a=normTitle(b.title), c=normTitle(hit.title);
+  if(!a||!c) return false;
+  if(!(a===c || a.startsWith(c) || c.startsWith(a))) return false;
+  const x=lastName(b.author), y=lastName(hit.author);
+  return !x || !y || x==="unknown" || y==="unknown" || x===y;
+}
+
+async function coverFromSearch(key, query, b, checkTitle){
+  const src=SOURCES[key]; if(!src||!query) return null;
+  const hits=await src.search(query,{anyLang:true});
+  const hit=hits.find(h => h.coverUrl && (!checkTitle || sameBook(b,h)));
+  if(!hit) return null;
+  return {small:hit.coverUrl, big:hit.coverBig||hit.coverUrl, isbn:hit.isbn,
+          ref:hit.ref, src:hit.source, pages:hit.pages, year:hit.year};
+}
+
+/* Cheapest and most certain first: the cover server needs no search and an
+   ISBN can't match the wrong book. Only then the slower guesses. */
+async function resolveCover(b){
+  const steps=[];
+  if(b.isbn) steps.push(async()=>({small:olIsbnCover(b.isbn,"M"), big:olIsbnCover(b.isbn,"L")}));
+
+  if(b.ref && b.src && SOURCES[b.src] && SOURCES[b.src].canEditions) steps.push(async()=>{
+    const eds=await SOURCES[b.src].editions(b.ref);
+    const pick=(prefLang!=="any" && eds.find(e=>e.coverUrl && e.langs.includes(prefLang)))
+            || eds.find(e=>e.coverUrl);
+    return pick ? {small:pick.coverUrl, big:pick.coverBig||pick.coverUrl, isbn:pick.isbn} : null;
+  });
+
+  for(const key of ["gb","ol"]){
+    if(b.isbn) steps.push(()=>coverFromSearch(key, b.isbn, b, false));
+    steps.push(()=>coverFromSearch(key, [b.title,b.author].filter(Boolean).join(" "), b, true));
+    /* The title we show may be a translated edition; the original is what the
+       catalogue that has the art is most likely to be filed under. */
+    if(b.origTitle && b.origTitle!==b.title)
+      steps.push(()=>coverFromSearch(key, [b.origTitle,b.author].filter(Boolean).join(" "), b, false));
+  }
+
+  for(const step of steps){
+    let cand=null;
+    try{ cand=await step(); }catch(e){}
+    if(!cand) continue;
+    const big = await imageOk(cand.big) ? cand.big
+              : (cand.small!==cand.big && await imageOk(cand.small) ? cand.small : null);
+    if(!big) continue;
+    b.coverBig=big;
+    b.coverUrl=(cand.small && cand.small!==big && await imageOk(cand.small)) ? cand.small : big;
+    b.coverMiss=false;
+    /* A search that found the jacket usually knows the rest too. Fill only
+       the blanks — never overwrite what the reader or the catalogue set. */
+    if(!b.isbn && cand.isbn) b.isbn=cand.isbn;
+    if(!b.ref && cand.ref){ b.ref=cand.ref; b.src=cand.src; }
+    if(!b.pages && cand.pages) b.pages=cand.pages;
+    if(!b.year && cand.year) b.year=cand.year;
+    return true;
+  }
+  b.coverMiss=true;                    // asked everyone; don't ask again unaided
+  return false;
+}
+
+/* The single place that decides whether a book has a usable jacket: verify
+   what we hold, go looking if it is gone or was never there, and take the
+   shelf colour from whatever we end up with.
+
+   The hunt can be started from three directions at once — the pass that runs
+   on add, the background backfill, a slot whose image just 404'd — so a book
+   already being looked at hands back the search in flight rather than running
+   the whole ladder a second time against the same two catalogues. */
+const coverHunts=new Map();
+function ensureCover(b, force){
+  const running=coverHunts.get(b.id);
+  if(running && !force) return running;
+  const p=(async()=>{
+    if(force) b.coverMiss=false;
+    const have=b.coverBig||b.coverUrl;
+    let ok = have ? await imageOk(have) : false;
+    if(!ok){ b.coverUrl=null; b.coverBig=null; }
+    if(!ok && (force || !b.coverMiss)) ok = await resolveCover(b);
+    if(ok){ const c=await extractColor(b.coverUrl||b.coverBig); if(c) b.color=c; }
+    return ok;
+  })();
+  if(!b.id) return p;
+  const tracked=p.finally(()=>{ if(coverHunts.get(b.id)===tracked) coverHunts.delete(b.id); });
+  coverHunts.set(b.id,tracked);
+  return tracked;
+}
+
+/* A hit with no art but an ISBN is worth one cheap guess at the cover
+   server — the result is drawn only if it loads, so a wrong guess costs
+   nothing but keeps the result list from being a column of blanks. */
+function seedIsbnCovers(hits){
+  hits.forEach(h=>{
+    if(h.coverUrl || !h.isbn) return;
+    h.coverUrl=olIsbnCover(h.isbn,"M"); h.coverBig=olIsbnCover(h.isbn,"L");
+  });
+  return hits;
+}
+
+/* ── the drawn jacket ── */
+const PH_CACHE=new Map();
+function wrapWords(s,max,lines){
+  const out=[]; let cur="";
+  for(const w of String(s).trim().split(/\s+/)){
+    const t=cur?cur+" "+w:w;
+    if(t.length<=max){ cur=t; continue; }
+    if(cur) out.push(cur);
+    if(out.length>=lines) break;
+    cur = w.length>max ? w.slice(0,max-1)+"…" : w;
+  }
+  if(cur && out.length<lines) out.push(cur);
+  return out.slice(0,lines);
+}
+function placeholderCover(title,author,color){
+  const lines=wrapWords(String(title||"Untitled").toUpperCase(),14,5);
+  const size=lines.length>3 ? 15 : 18;
+  const body=lines.map((t,i)=>
+    `<text x="20" y="${88+i*size*1.14}" font-size="${size}" font-weight="700">${esc(t)}</text>`).join("");
+  const au=author ? `<text x="20" y="270" font-size="8.5" letter-spacing="1.5" opacity=".72">`
+    + `${esc(String(author).toUpperCase().slice(0,24))}</text>` : "";
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" width="200" height="300">`
+    + `<rect width="200" height="300" fill="${esc(color)}"/>`
+    + `<g fill="${esc(readable(color))}" font-family="Archivo, Helvetica, Arial, sans-serif">`
+    + `<rect x="20" y="54" width="30" height="2" opacity=".6"/>${body}`
+    + `<rect x="20" y="250" width="160" height="1" opacity=".28"/>${au}`
+    + `</g></svg>`;
+  /* encodeURIComponent leaves parentheses alone, and an hsl() colour is full
+     of them — enough to end a css url() early. Escape them too so the result
+     is safe to drop in with or without quotes. */
+  return "data:image/svg+xml;charset=utf-8,"
+    + encodeURIComponent(svg).replace(/[()']/g, c=>"%"+c.charCodeAt(0).toString(16).toUpperCase());
+}
+/* Drawn on demand and never stored: it must not end up in the export, and it
+   has to follow the title when an edition swap changes it. */
+function placeholderFor(b){
+  const color=b.color||fallbackColor(b.title||"?");
+  const k=`${b.title}|${b.author}|${color}`;
+  let v=PH_CACHE.get(k);
+  if(!v){
+    if(PH_CACHE.size>400) PH_CACHE.clear();
+    v=placeholderCover(b.title,b.author,color); PH_CACHE.set(k,v);
+  }
+  return v;
+}
 
 /* ═══════════ storage ═══════════
    IndexedDB on our own host, window.storage inside Claude,
@@ -854,7 +1044,7 @@ function unfold(src,b,done){
   if(r.width>120){ done(); return; }
   const f=el("div","flyer");
   f.style.cssText+=`left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;background-color:${b.color}`;
-  if(b.coverBig||b.coverUrl) f.style.backgroundImage=`url(${b.coverBig||b.coverUrl})`;
+  f.style.backgroundImage=`url("${b.coverBig||b.coverUrl||placeholderFor(b)}")`;
   document.body.appendChild(f); flyer=f;
   const tw=Math.min(200,innerWidth*0.44), th=tw*1.5;
   const tx=innerWidth>720?20:(innerWidth-tw)/2-r.left, ty=innerHeight*0.30-r.top;
@@ -869,13 +1059,39 @@ function unfold(src,b,done){
 }
 
 /* ═══════════ book detail ═══════════ */
-/* Covers arrive in every shape — square reprints, tall paperbacks. Letting the
-   slot take the file's own ratio shows the whole jacket instead of trimming
-   the title off it. Falls back to the 2/3 in the stylesheet if the load fails. */
-function fitRatio(node,url){
+/* Every cover slot is painted the same way: the drawn jacket goes down first
+   so nothing is ever blank, and the catalogue image replaces it only once it
+   has loaded. Covers arrive in every shape — square reprints, tall paperbacks
+   — so the slot then takes the file's own ratio rather than trimming the
+   title off it.
+
+   A dead link is treated as news, not as an error: the stored URL is dropped
+   and the book goes back through resolveCover once, which is how a jacket
+   that disappeared from one catalogue is quietly replaced from the other.
+   Pass a plain object (a search hit, an edition) and it just draws. */
+const coverRetried=new Set();
+function paintCover(node,b,small){
+  const url = small ? (b.coverUrl||b.coverBig) : (b.coverBig||b.coverUrl);
+  node.style.backgroundColor=b.color||fallbackColor(b.title||"?");
+  node.style.backgroundImage=`url("${placeholderFor(b)}")`;
+  node.style.aspectRatio="";
+  node.dataset.coverFor=url||"";
+  if(!url) return;
   const im=new Image();
-  im.onload=()=>{ if(im.naturalWidth && im.naturalHeight)
-    node.style.aspectRatio=`${im.naturalWidth}/${im.naturalHeight}`; };
+  im.onload=()=>{
+    if(node.dataset.coverFor!==url) return;       // the panel moved on
+    node.style.backgroundImage=`url("${url}")`;
+    if(im.naturalWidth>2 && im.naturalHeight>2)
+      node.style.aspectRatio=`${im.naturalWidth}/${im.naturalHeight}`;
+  };
+  im.onerror=()=>{
+    if(!books.includes(b) || coverRetried.has(b.id)) return;
+    coverRetried.add(b.id);
+    b.coverUrl=null; b.coverBig=null; b.coverMiss=false;
+    /* Patch either way: a hunt that came back empty still has to swap the
+       broken slot for the drawn jacket and put "Find cover" back on offer. */
+    ensureCover(b).then(found=>{ save(); if(found) render(); patchDetail(b); });
+  };
   im.src=url;
 }
 
@@ -916,10 +1132,11 @@ function patchDetail(b){
   const cov=scope.querySelector(`[data-cover="${b.id}"]`);
   if(!cov) return;
   cov.style.backgroundColor=b.color;
-  const u=b.coverBig||b.coverUrl;
-  if(u && cov.dataset.coverFor!==u){
-    cov.dataset.coverFor=u; cov.style.backgroundImage=`url(${u})`; fitRatio(cov,u);
-  }
+  /* Repainting an unchanged cover would flash the drawn jacket over a jacket
+     that is already there, so only repaint when the image actually moved. */
+  if(cov.dataset.coverFor!==(b.coverBig||b.coverUrl||"")) paintCover(cov,b);
+  const findc=scope.querySelector(`[data-findcover="${b.id}"]`);
+  if(findc) findc.hidden=!!b.coverUrl;
   scope.querySelector(`[data-title="${b.id}"]`).textContent=b.title;
   const o=scope.querySelector(`[data-orig="${b.id}"]`);
   const showOrig=b.origTitle && b.origTitle!==b.title;
@@ -945,9 +1162,7 @@ function buildDetail(b){
   const wrap=el("div","detail");
   const left=el("div"), cov=el("div","coverslot");
   cov.dataset.cover=b.id;
-  cov.style.backgroundColor=b.color;
-  const covUrl=b.coverBig||b.coverUrl;
-  if(covUrl){ cov.dataset.coverFor=covUrl; cov.style.backgroundImage=`url(${covUrl})`; fitRatio(cov,covUrl); }
+  paintCover(cov,b);
   left.appendChild(cov);
 
   const right=el("div");
@@ -1003,7 +1218,7 @@ function buildDetail(b){
 
   // primary actions
   const acts=el("div","acts");
-  const add=(box,cls,txt,fn)=>{ const x=el("button","act "+cls); x.textContent=txt; x.onclick=fn; box.appendChild(x); };
+  const add=(box,cls,txt,fn)=>{ const x=el("button","act "+cls); x.textContent=txt; x.onclick=fn; box.appendChild(x); return x; };
   if(b.shelf!=="reading")
     add(acts,"sig", b.gaveUp?"Pick it up again":"Start reading",()=>{
       b.shelf="reading"; b.gaveUp=false; b.started=b.started||today(); b.finished=null; b.finishedYear=null;
@@ -1023,6 +1238,19 @@ function buildDetail(b){
   else if(b.id===justAdded && lastQuery) add(more,"quiet","← Back to results",()=>searchPanel(lastQuery));
   if(b.shelf!=="toread") add(more,"quiet","→ To read",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
   if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Change edition",()=>openEditions(b));
+  /* The drawn jacket is a stand-in, and a book that had none at midnight can
+     have one by morning — so offer the search again by hand, and let it look
+     past the coverMiss that stops the background pass from retrying. Always
+     in the DOM, hidden when there is a cover: the hunt that runs on add
+     finishes after this panel is built and has to be able to reveal it. */
+  const findc=add(more,"quiet","Find cover",async()=>{
+    findc.disabled=true; toast("Looking for a cover …");
+    const ok=await ensureCover(b,true);
+    findc.disabled=false;
+    save(); render(); patchDetail(b);
+    toast(ok ? "Cover found" : "Neither catalog has the jacket");
+  });
+  findc.dataset.findcover=b.id; findc.hidden=!!b.coverUrl;
   add(more,"quiet","Remove",()=>{
     const idx=books.indexOf(b); lastRemoved={b,idx};
     books=books.filter(x=>x.id!==b.id); save(); render(); closePanel();
@@ -1121,7 +1349,9 @@ async function openEditions(b){
     results.innerHTML="";
     list.slice(0,40).forEach(e=>{
       const r=el("button","res");
-      const th=el("div","th"); if(e.coverUrl) th.style.backgroundImage=`url(${e.coverUrl})`;
+      const th=el("div","th");
+      paintCover(th,{title:e.title, author:b.author, color:fallbackColor(e.title||"?"),
+                     coverUrl:e.coverUrl, coverBig:e.coverBig}, true);
       const info=el("div");
       const sub=[e.langs.map(l=>LANGS[l]||l).join("/"),e.publisher,e.year,e.pages?e.pages+" pp.":null].filter(Boolean).join(" · ");
       info.innerHTML=`<div class="ti">${esc(e.title)}</div><div class="au">${esc(sub)}</div>`;
@@ -1135,8 +1365,10 @@ async function openEditions(b){
         if(e.pages) b.pages=e.pages;
         if(e.year) b.year=e.year;
         if(e.publisher) b.publisher=e.publisher;
-        const c=await extractColor(b.coverUrl); if(c) b.color=c;
         refresh(b); toast("Edition changed");
+        /* An edition without art keeps the one we had rather than going
+           blank; ensureCover only steps in when there is nothing at all. */
+        await ensureCover(b); save(); render(); patchDetail(b);
       };
       results.appendChild(r);
     });
@@ -1200,7 +1432,7 @@ function searchPanel(prefill){
           try{ const alt=await SOURCES[other].search(q); if(alt.length){ hits=alt; from=other; } }catch(e){}
         }
         results.innerHTML="";
-        hits.forEach(h=>results.appendChild(resultRow(h)));
+        seedIsbnCovers(hits).forEach(h=>results.appendChild(resultRow(h)));
         if(hits.length) hint.textContent = from===source
           ? `${hits.length} results in ${SOURCES[from].label}`
           : `Nothing in ${SOURCES[source].label} — ${hits.length} in ${SOURCES[from].label}`;
@@ -1229,7 +1461,8 @@ function resultRow(hit){
   r.setAttribute("aria-label",hit.title);
 
   const th=el("div","th"); th.setAttribute("aria-hidden","true");
-  if(hit.coverUrl) th.style.backgroundImage=`url(${hit.coverUrl})`;
+  paintCover(th,{title:hit.title, author:hit.author, color:fallbackColor(hit.title||"?"),
+                 coverUrl:hit.coverUrl, coverBig:hit.coverBig}, true);
 
   const sub=[hit.author,hit.year,hit.lang?(LANGS[hit.lang]||hit.lang):null].filter(Boolean).join(" · ");
   /* No "+" glyph here any more: with three labelled shelves right below it,
@@ -1345,9 +1578,10 @@ function undoAdd(b){
   if($("#pbody").querySelector(`[data-cover="${b.id}"]`)) closePanel();
 }
 
-/* Swap in the preferred-language edition and pull the cover colour, then
-   patch whatever panel is open. No toast: it would replace the one carrying
-   Undo, and the panel shows the change plainly enough by itself. */
+/* Swap in the preferred-language edition, make sure the book has a jacket,
+   pull the cover colour, then patch whatever panel is open. No toast: it
+   would replace the one carrying Undo, and the panel shows the change
+   plainly enough by itself. */
 async function enrichNewBook(b){
   if(prefLang!=="any" && b.ref && SOURCES[b.src].canEditions && b.lang!==prefLang){
     try{
@@ -1363,7 +1597,10 @@ async function enrichNewBook(b){
       }
     }catch(e){}
   }
-  const c=await extractColor(b.coverUrl); if(c) b.color=c;
+  /* The catalogues hand back plenty of hits with no art, and a book entered
+     by hand starts with none at all — so a new book is never taken at its
+     word about its cover, it is checked and, if need be, hunted down. */
+  try{ await ensureCover(b); }catch(e){}
   if(!books.includes(b)) return;       // undone while we were fetching
   render(); save(); patchDetail(b);
 }
@@ -1706,25 +1943,27 @@ function csvToBooks(text){
   });
 }
 
-/* After an import, look up covers and catalog refs for books that lack them.
+/* Look up covers and catalog refs for books that lack them — after an import,
+   and once at every start so a shelf that predates this ever having worked
+   fills itself in. Books already asked about carry coverMiss and are skipped,
+   which is what keeps the second start cheap. Sequential and paced on purpose:
+   a hundred books at once is a burst both catalogues answer with a 429.
    Repaints are batched so the shelf doesn't redraw once per book. */
-async function enrichCovers(){
-  const missing=books.filter(b=>!b.coverUrl&&!b.ref).slice(0,60);
-  let dirty=0;
-  for(const b of missing){
-    try{
-      const hits=await SOURCES.ol.search(b.isbn||`${b.title} ${b.author}`);
-      const hit=hits.find(h=>h.coverUrl)||hits[0];
-      if(!hit) continue;
-      b.ref=hit.ref; b.src="ol";
-      if(!b.isbn) b.isbn=hit.isbn;
-      if(!b.year) b.year=hit.year;
-      b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig;
-      const c=await extractColor(b.coverUrl); if(c) b.color=c;
-      if(++dirty%8===0){ render(); save(); }
-    }catch(e){}
-  }
-  if(dirty){ render(); save(); }
+let backfilling=false;
+async function backfillCovers(limit){
+  if(backfilling) return;
+  backfilling=true;
+  try{
+    const missing=books.filter(b=>!b.coverUrl&&!b.coverMiss).slice(0,limit||60);
+    let done=0;
+    for(const b of missing){
+      if(!books.includes(b)) continue;   // removed while we were working
+      try{ await ensureCover(b); }catch(e){}
+      if(++done%8===0){ render(); save(); }
+      await sleep(140);
+    }
+    if(done){ render(); save(); }        // save even with nothing found: the
+  } finally { backfilling=false; }       // misses are worth remembering too
 }
 
 $("#importfile").onchange=async e=>{
@@ -1752,7 +1991,7 @@ $("#importfile").onchange=async e=>{
     });
     await save(); render();
     toast(`${added} books imported`, ()=>{ books=backup; save(); render(); });
-    if(added) enrichCovers();
+    if(added) backfillCovers(120);
   }catch(err){ toast("Invalid file"); }
   e.target.value="";
 };
@@ -1772,6 +2011,9 @@ $("#wipe").onclick=async()=>{
   if("serviceWorker" in navigator){
     try{ await navigator.serviceWorker.register("./sw.js"); }catch(e){}
   }
+  /* After the shelf is up, not before it: filling in old covers is background
+     work and must never be what the reader waits on. */
+  backfillCovers();
 })();
 </script>
 </body>
