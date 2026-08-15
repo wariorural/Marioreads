@@ -20,7 +20,12 @@
 :root{--paper:#EFEFEA;--ink:#111110;--rule:#C9C9C2;--grid:#E3E3DC;--signal:#FF3B00;--gut:20px;
   /* One height for every control in the app. Buttons and fields used to set
      their own padding, which is why nothing lined up. Raised on touch below. */
-  --ctl:34px;--ctl-pad:13px;--ctl-field:150px}
+  --ctl:34px;--ctl-pad:13px;--ctl-field:150px;
+  /* Paper texture. A lone 2px dot has none of the continuity the eye
+     integrates along a hairline, so it has to be darker than the old rules
+     were to carry the same weight — but still under --rule, which draws the
+     lines that actually mean something. */
+  --dot:rgba(17,17,16,.14);--dotgap:24px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
 /* ── the control system ──────────────────────────────────────────────────
@@ -32,17 +37,16 @@
   -webkit-appearance:none;appearance:none;border-radius:0}
 .btn,.act{padding:0 var(--ctl-pad);display:inline-flex;align-items:center;
   justify-content:center;white-space:nowrap}
-body{background:var(--paper);color:var(--ink);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
+/* background-color, not the shorthand — the shorthand would reset the image */
+body{background-color:var(--paper);
+  background-image:radial-gradient(circle at 1px 1px,var(--dot) 1px,transparent 1.4px);
+  background-size:var(--dotgap) var(--dotgap);
+  color:var(--ink);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
   font-size:14px;line-height:1.35;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 .mono{font-family:"DM Mono","SFMono-Regular",Menlo,monospace;font-size:11px;letter-spacing:.02em}
 .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;
   padding:env(safe-area-inset-top) calc(var(--gut) + env(safe-area-inset-right))
           calc(40px + env(safe-area-inset-bottom)) calc(var(--gut) + env(safe-area-inset-left))}
-.gridlines{position:absolute;left:var(--gut);right:var(--gut);top:0;bottom:0;pointer-events:none;
-  z-index:0;display:grid;grid-template-columns:repeat(6,1fr)}
-.gridlines i{border-left:1px solid var(--grid)}
-.gridlines i:last-child{border-right:1px solid var(--grid)}
-header,nav,.railwrap,.bar,#view,.foot{position:relative;z-index:1}
 
 header{padding:22px 0 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .mark{font-weight:800;font-variation-settings:"wdth" 118;font-size:19px;letter-spacing:-.02em;
@@ -175,11 +179,24 @@ nav button[aria-selected="true"] .n{opacity:1}
 .scrim{position:fixed;inset:0;background:rgba(17,17,16,.34);opacity:0;z-index:40;transition:opacity .3s;pointer-events:none}
 .scrim.on{opacity:1;pointer-events:auto}
 .panel{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--paper);border-top:1px solid var(--ink);
-  transform:translateY(101%);transition:transform .46s cubic-bezier(.16,1,.3,1);max-height:92vh;overflow-y:auto}
+  transform:translateY(101%);transition:transform .46s cubic-bezier(.16,1,.3,1);overflow-y:auto;
+  /* vh is the large viewport, so with the mobile URL bar showing it can put
+     the panel's bottom under the chrome; dvh tracks it. Browsers without dvh
+     drop the second line. overscroll-behavior stops a flick past the end of a
+     long list from scrolling the page behind the scrim. */
+  max-height:92vh;max-height:92dvh;overscroll-behavior:contain}
 .panel.on{transform:translateY(0)}
 .panelin{max-width:1180px;margin:0 auto;padding:0 var(--gut) calc(26px + env(safe-area-inset-bottom))}
-.phead{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--rule);
-  position:sticky;top:0;background:var(--paper);z-index:2}
+/* Everything that stays put while the panel scrolls lives in one sticky
+   block, so the pieces stack by document order. A second sticky at top:0
+   would have to be told how tall .phead is — and that height moves when the
+   webfont swaps. z-index:3 beats .shelfpick, so rows pass underneath. */
+.pstick{position:sticky;top:0;z-index:3;background:var(--paper)}
+.phead{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--rule)}
+/* The search panel parks its query field and result count here; every other
+   panel leaves it empty, and an empty slot must not draw a rule of its own. */
+.pslot{padding-bottom:10px;border-bottom:1px solid var(--rule)}
+.pslot:empty{display:none}
 .phead span{font-size:9px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#6a6a63}
 .x{appearance:none;background:none;border:0;font-family:inherit;font-size:11px;font-weight:700;
   letter-spacing:.16em;text-transform:uppercase;cursor:pointer;color:var(--ink)}
@@ -287,7 +304,6 @@ nav button[aria-selected="true"] .n{opacity:1}
 </head>
 <body>
 <div class="wrap">
-  <div class="gridlines" id="gridlines"><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header>
     <div class="mark">Bookshelf<small>NO FRILLS</small></div>
     <div class="adds">
@@ -325,7 +341,10 @@ nav button[aria-selected="true"] .n{opacity:1}
 <div class="scrim" id="scrim"></div>
 <div class="panel" id="panel">
   <div class="panelin">
-    <div class="phead"><span id="ptitle">Book</span><button class="x" id="closePanel">Close ✕</button></div>
+    <div class="pstick">
+      <div class="phead"><span id="ptitle">Book</span><button class="x" id="closePanel">Close ✕</button></div>
+      <div class="pslot" id="pslot"></div>
+    </div>
     <div id="pbody"></div>
   </div>
 </div>
@@ -717,7 +736,6 @@ function moveRail(){
   const b=document.querySelector(`#tabs [data-view="${view}"]`);
   const nav=$("#tabs").getBoundingClientRect(), r=b.getBoundingClientRect();
   $("#rail").style.left=(r.left-nav.left)+"px"; $("#rail").style.width=r.width+"px";
-  $("#gridlines").style.top=document.querySelector("header").offsetHeight+"px";
 }
 
 /* ═══════════ events ═══════════ */
@@ -749,10 +767,19 @@ addEventListener("resize",()=>{
 });
 
 /* ═══════════ panel ═══════════ */
-function openPanel(title,node){
-  $("#ptitle").textContent=title; $("#pbody").innerHTML="";
-  $("#pbody").appendChild(node);
-  $("#panel").classList.add("on"); $("#scrim").classList.add("on");
+/* `head` goes in the sticky region above the scroll, for panels that have
+   something worth pinning there. Everything else leaves it empty. */
+function openPanel(title,node,head){
+  const p=$("#panel");
+  $("#ptitle").textContent=title;
+  $("#pslot").innerHTML=""; if(head) $("#pslot").appendChild(head);
+  $("#pbody").innerHTML=""; $("#pbody").appendChild(node);
+  p.classList.add("on"); $("#scrim").classList.add("on");
+  /* New content, new panel: start at the top. Nothing did this before, which
+     is why opening Search after reading a long book landed you mid-list.
+     Same synchronous block as the append, so there is no paint in between —
+     and not in closePanel, where the sheet is still visibly sliding away. */
+  p.scrollTop=0;
 }
 function closePanel(){
   $("#panel").classList.remove("on"); $("#scrim").classList.remove("on");
@@ -813,7 +840,20 @@ async function openBook(b,src){
     }catch(e){}
   }
 }
-function refresh(b){ save(); render(); openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf], buildDetail(b)); }
+/* The one panel that must not jump to the top: it rebuilds the same book
+   under the reader after a shelf action. But it is also reached from an
+   editions row, where the panel is a long list of editions — keeping that
+   offset would drop you into the middle of the detail. So check what is
+   actually on screen first. Read the offset before openPanel empties the
+   body, or it measures nothing and returns 0. */
+function refresh(b){
+  const p=$("#panel");
+  const same=!!$("#pbody").querySelector(`[data-cover="${b.id}"]`);
+  const y=same?p.scrollTop:0;
+  save(); render();
+  openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf], buildDetail(b));
+  p.scrollTop=y;
+}
 
 /* Update an open detail panel in place. refresh() would do it by rebuilding,
    but that discards a half-typed date and the focus that goes with it — and
@@ -884,7 +924,7 @@ function buildDetail(b){
     const l=el("label"); l.textContent=lab;
     const i=el("input"); i.type="date"; i.value=b[key]||"";
     /* save+render, not refresh — rebuilding the panel here would throw away
-       the field you are still working in and jump the scroll to the top. */
+       the field you are still working in and the focus that goes with it. */
     i.onchange=()=>{ b[key]=i.value||null; if(key==="finished"&&i.value){ b.finishedYear=null; syncYear(); } save(); render(); };
     l.appendChild(i); df.appendChild(l);
   });
@@ -1025,8 +1065,14 @@ function searchPanel(prefill){
 
   const hint=el("div","hint"); hint.textContent="Type at least three characters";
   const results=el("div");
-  w.append(box,opts,hint,results);
-  openPanel("Add book",w);
+  /* Query field and result count are pinned; the language/catalog toggles are
+     not — they are set once and cost 44px a row on touch, which would eat a
+     third of the panel. A fragment, not a wrapper, so .pslot's padding and
+     rule apply to the head's own box. */
+  const head=document.createDocumentFragment();
+  head.append(box,hint);
+  w.append(opts,results);
+  openPanel("Add book",w,head);
   setTimeout(()=>inp.focus(),380);
 
   let timer;
@@ -1041,6 +1087,7 @@ function searchPanel(prefill){
         hint.textContent = hits.length ? `${hits.length} results in ${SOURCES[source].label}` : "No results. Try a different spelling or switch catalogs.";
         results.innerHTML="";
         hits.forEach(h=>results.appendChild(resultRow(h)));
+        $("#panel").scrollTop=0;      // a new result set starts at its own top
       }catch(e){
         hint.textContent=`No response from ${SOURCES[source].label}. Try the other catalog.`;
       }
