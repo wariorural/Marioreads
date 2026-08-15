@@ -409,7 +409,7 @@ const KEY="bokhylle:books", SKEY="bokhylle:settings";
 let books=[], view="reading", sort="added", regFilter="all", regMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
 let animateShelf=true; // entrance animation only on first paint and view switches
-let lastQuery="", justAdded=null; // for the "back to results" link after an add
+let lastQuery="", justAdded=null, lastEntry=""; // for the follow-on link after an add
 
 const $ = s => document.querySelector(s);
 const el = (t,c) => { const e=document.createElement(t); if(c) e.className=c; return e; };
@@ -1017,9 +1017,10 @@ function buildDetail(b){
 
   // secondary
   const more=el("div","acts second");
-  /* Adding replaces the results list in place, so without this the flow dead
-     ends and entering a backlog means reopening search for every book. */
-  if(b.id===justAdded && lastQuery) add(more,"quiet","← Back to results",()=>searchPanel(lastQuery));
+  /* Adding replaces the panel in place, so without a way back the flow dead
+     ends and entering a backlog means starting over for every single book. */
+  if(b.id===justAdded && lastEntry==="manual") add(more,"quiet","＋ Enter another",()=>manualPanel(""));
+  else if(b.id===justAdded && lastQuery) add(more,"quiet","← Back to results",()=>searchPanel(lastQuery));
   if(b.shelf!=="toread") add(more,"quiet","→ To read",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
   if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Change edition",()=>openEditions(b));
   add(more,"quiet","Remove",()=>{
@@ -1250,6 +1251,7 @@ function resultRow(hit){
   r.append(th,hitbtn,picks);
   r.addEventListener("click",e=>{
     const btn=e.target.closest("[data-shelf]"); if(!btn) return;
+    lastEntry="search";
     addBook(hit, btn.dataset.shelf||defaultShelf());
   });
   return r;
@@ -1294,6 +1296,7 @@ function manualPanel(q){
     x.onclick=()=>{
       const title=fields.title.value.trim();
       if(!title){ err.hidden=false; err.textContent="A title, at least."; fields.title.focus(); return; }
+      lastEntry="manual";
       addBook({
         title, author:fields.author.value.trim()||"Unknown",
         year:fields.year.value?+fields.year.value:null,
@@ -1365,6 +1368,127 @@ async function enrichNewBook(b){
   render(); save(); patchDetail(b);
 }
 
+/* ═══════════ EAN-13 ═══════════
+   Safari has never shipped BarcodeDetector, on any platform, so on an iPhone
+   the scanner was only ever the "not supported" message — the camera never
+   opened. Every book barcode is EAN-13, and that one format is small enough
+   to decode here rather than make the offline shell carry a library.
+
+   A digit is 7 modules wide, written as the widths of its four runs. The left
+   half reads light-first, the right half dark-first with the same widths, and
+   whether a left digit used the table or its reverse spells out the first
+   digit — that is what the parity table below decodes. */
+const EAN_L=[[3,2,1,1],[2,2,2,1],[2,1,2,2],[1,4,1,1],[1,1,3,2],
+             [1,2,3,1],[1,1,1,4],[1,3,1,2],[1,2,1,3],[3,1,1,2]];
+const EAN_FIRST=[0x00,0x0B,0x0D,0x0E,0x13,0x19,0x1C,0x15,0x16,0x1A];
+
+/* How far the measured runs may drift from the ideal before we call it a
+   mismatch — printed barcodes on curved paperback covers need the slack. */
+function patternOff(counts,pattern,maxVar){
+  let total=0,patTotal=0;
+  for(let i=0;i<counts.length;i++){ total+=counts[i]; patTotal+=pattern[i]; }
+  if(total<patTotal) return Infinity;
+  const unit=total/patTotal, slack=unit*maxVar;
+  let off=0;
+  for(let i=0;i<counts.length;i++){
+    const d=Math.abs(counts[i]-pattern[i]*unit);
+    if(d>slack) return Infinity;
+    off+=d;
+  }
+  return off/total;
+}
+
+function bestDigit(counts,reversible){
+  let best=-1,bestOff=0.48;                  // anything worse is not a digit
+  for(let d=0;d<10;d++){
+    let off=patternOff(counts,EAN_L[d],0.7);
+    if(off<bestOff){ bestOff=off; best=d; }
+    if(reversible){
+      off=patternOff(counts,EAN_L[d].slice().reverse(),0.7);
+      if(off<bestOff){ bestOff=off; best=d+10; }   // +10 marks even parity
+    }
+  }
+  return best;
+}
+
+/* One horizontal line of the frame, as alternating dark/light run lengths. */
+function lineRuns(gray){
+  let mn=255,mx=0;
+  for(let i=0;i<gray.length;i++){ if(gray[i]<mn)mn=gray[i]; if(gray[i]>mx)mx=gray[i]; }
+  if(mx-mn<48) return null;                  // flat line: no barcode here
+  const th=(mn+mx)/2, runs=[];
+  let dark=gray[0]<th, n=0;
+  for(let i=0;i<gray.length;i++){
+    const d=gray[i]<th;
+    if(d===dark) n++; else { runs.push(n); dark=d; n=1; }
+  }
+  runs.push(n);
+  return {runs, firstDark:gray[0]<th};
+}
+
+function decodeAt(runs,start){
+  let i=start+3;                             // past the 101 start guard
+  const digits=[]; let parity=0;
+  for(let d=0;d<6;d++){
+    if(i+4>runs.length) return null;
+    const v=bestDigit(runs.slice(i,i+4),true);
+    if(v<0) return null;
+    digits.push(v%10);
+    if(v>=10) parity|=1<<(5-d);
+    i+=4;
+  }
+  if(i+5>runs.length) return null;
+  if(patternOff(runs.slice(i,i+5),[1,1,1,1,1],0.7)===Infinity) return null;  // 01010
+  i+=5;
+  for(let d=0;d<6;d++){
+    if(i+4>runs.length) return null;
+    const v=bestDigit(runs.slice(i,i+4),false);
+    if(v<0) return null;
+    digits.push(v);
+    i+=4;
+  }
+  const first=EAN_FIRST.indexOf(parity);
+  if(first<0) return null;
+  const code=String(first)+digits.join("");
+  let sum=0;
+  for(let k=0;k<12;k++) sum+=(+code[k])*(k%2?3:1);
+  if((10-sum%10)%10 !== +code[12]) return null;   // check digit
+  return code;
+}
+
+function decodeLine(gray){
+  for(const flip of [false,true]){
+    const g = flip ? Uint8Array.from(gray).reverse() : gray;
+    const r=lineRuns(g); if(!r) continue;
+    const {runs,firstDark}=r;
+    for(let i=firstDark?0:1;i<runs.length-30;i+=2){    // only ever start on a dark run
+      if(patternOff(runs.slice(i,i+3),[1,1,1],0.7)===Infinity) continue;
+      const code=decodeAt(runs,i);
+      if(code) return code;
+    }
+  }
+  return null;
+}
+
+/* Sample a spread of lines across the middle of the frame — the barcode only
+   has to cross one of them, which is what makes aiming forgiving. */
+function scanFrame(video,cv,cx){
+  const vw=video.videoWidth, vh=video.videoHeight;
+  if(!vw||!vh) return null;
+  const W=Math.min(800,vw), H=Math.max(1,Math.round(vh*(W/vw)));
+  cv.width=W; cv.height=H;
+  cx.drawImage(video,0,0,W,H);
+  const d=cx.getImageData(0,0,W,H).data, gray=new Uint8Array(W);
+  for(let k=-7;k<=7;k++){
+    const y=Math.round(H/2 + k*H*0.035);
+    if(y<0||y>=H) continue;
+    for(let x=0;x<W;x++){ const p=(y*W+x)*4; gray[x]=(d[p]*77+d[p+1]*151+d[p+2]*28)>>8; }
+    const code=decodeLine(gray);
+    if(code) return code;
+  }
+  return null;
+}
+
 /* ═══════════ scanning ═══════════ */
 function stopCam(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
 
@@ -1380,35 +1504,49 @@ $("#openScan").onclick=async()=>{
   w.append(hint,video,manual,go);
   openPanel("Scan barcode",w);
 
-  if(!("BarcodeDetector" in window)){
-    hint.textContent="Your browser doesn't support barcode scanning. Type the ISBN below.";
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    hint.textContent="No camera available here. Type the ISBN below.";
     video.remove(); inp.focus(); return;
   }
   try{
-    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    camStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}});
     video.srcObject=camStream; await video.play();
     hint.textContent="Hold the barcode on the back of the book up to the camera";
-    let formats=["ean_13","ean_8"];
-    try{
-      const supported=await BarcodeDetector.getSupportedFormats();
-      formats=formats.filter(f=>supported.includes(f));
-      if(!formats.length) formats=["ean_13"];
-    }catch(e){}
-    const det=new BarcodeDetector({formats});
+
+    /* Use the platform decoder where there is one, and fall back to ours where
+       there is not — which is every Safari. Both feed the same handler. */
+    let det=null;
+    if("BarcodeDetector" in window){
+      try{
+        const ok=await BarcodeDetector.getSupportedFormats();
+        const formats=["ean_13","ean_8"].filter(f=>ok.includes(f));
+        if(formats.length) det=new BarcodeDetector({formats});
+      }catch(e){}
+    }
+    const cv=el("canvas"), cx=cv.getContext("2d",{willReadFrequently:true});
+    const found=v=>{
+      if(!v || v.replace(/\D/g,"").length<8) return false;
+      stopCam(); toast("Scanned "+v); searchPanel(v); return true;
+    };
+    let misses=0;
     const tick=async()=>{
       if(!camStream) return;
       try{
-        const codes=await det.detect(video);
-        if(codes.length){
-          const v=codes[0].rawValue;
-          if(v && v.replace(/\D/g,"").length>=10){ stopCam(); searchPanel(v); return; }
-        }
+        if(det){ const codes=await det.detect(video); if(codes.length && found(codes[0].rawValue)) return; }
+        else if(found(scanFrame(video,cv,cx))) return;
       }catch(e){}
-      requestAnimationFrame(tick);
+      /* Ours reads a whole frame, so it runs on a timer rather than every
+         animation frame — often enough to feel instant, cheap enough not to
+         cook the phone while you line the book up. */
+      if(++misses===60) hint.textContent="Still looking — try more light, or hold it a little further back";
+      setTimeout(tick, det?60:120);
     };
-    requestAnimationFrame(tick);
+    tick();
   }catch(e){
-    hint.textContent="Couldn't access the camera here. Type the ISBN below instead.";
+    hint.textContent = e && e.name==="NotAllowedError"
+      ? "Camera access was declined. Type the ISBN below instead."
+      : "Couldn't access the camera here. Type the ISBN below instead.";
     video.remove(); inp.focus();
   }
 };
