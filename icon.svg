@@ -1,16 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#EFEFEA"/>
-  <!-- tre rygger, ulik høyde og bredde -->
+  <!-- three spines, varying height and width -->
   <rect x="112" y="150" width="66" height="230" fill="#111110"/>
   <rect x="188" y="118" width="52" height="262" fill="#FF3B00"/>
   <rect x="250" y="164" width="82" height="216" fill="#111110"/>
   <rect x="342" y="196" width="58" height="184" fill="#111110" opacity=".38"/>
-  <!-- hårstreker på ryggene -->
+  <!-- hairlines on the spines -->
   <g fill="#EFEFEA">
     <rect x="112" y="176" width="66" height="6"/><rect x="112" y="350" width="66" height="6"/>
     <rect x="188" y="144" width="52" height="6"/><rect x="188" y="350" width="52" height="6"/>
     <rect x="250" y="190" width="82" height="6"/><rect x="250" y="350" width="82" height="6"/>
   </g>
-  <!-- hyllelinje -->
+  <!-- shelf line -->
   <rect x="96" y="380" width="320" height="10" fill="#111110"/>
 </svg>

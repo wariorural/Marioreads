@@ -1,7 +1,7 @@
-/* Bokhylle service worker
-   Skallet caches så appen åpner offline. Omslagsbilder caches
-   etter hvert som de lastes. Katalogsøk går alltid til nett —
-   et gammelt søkeresultat er verre enn ingen. */
+/* Bookshelf service worker
+   The shell is cached so the app opens offline. Cover images are
+   cached as they load. Catalog searches always go to the network —
+   a stale search result is worse than none. */
 
 const SHELL = "bokhylle-shell-v1";
 const COVERS = "bokhylle-covers-v1";
@@ -47,10 +47,10 @@ self.addEventListener("fetch", e => {
   if (req.method !== "GET") return;
   const url = req.url;
 
-  // katalogoppslag: alltid nett, aldri cache
+  // catalog lookups: always network, never cache
   if (isCatalog(url)) return;
 
-  // omslag: cache først, så nett i bakgrunnen
+  // covers: cache first, then network in the background
   if (isCover(url)) {
     e.respondWith(
       caches.open(COVERS).then(async cache => {
@@ -68,7 +68,7 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // appskallet: nett først, cache som reserve
+  // app shell: network first, cache as fallback
   if (new URL(url).origin === self.location.origin) {
     e.respondWith(
       fetch(req)
