@@ -21,11 +21,11 @@
   /* One height for every control in the app. Buttons and fields used to set
      their own padding, which is why nothing lined up. Raised on touch below. */
   --ctl:34px;--ctl-pad:13px;--ctl-field:150px;
-  /* Paper texture. A lone 2px dot has none of the continuity the eye
-     integrates along a hairline, so it has to be darker than the old rules
-     were to carry the same weight — but still under --rule, which draws the
-     lines that actually mean something. */
-  --dot:rgba(17,17,16,.14);--dotgap:24px}
+  /* Paper texture. A 1px dot has none of the continuity the eye integrates
+     along a hairline, and at this size antialiasing eats most of it on a 1×
+     screen — so the individual dot has to be well darker than the old rules
+     were, even though the field reads far lighter than they did. */
+  --dot:rgba(17,17,16,.22);--dotgap:30px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
 /* ── the control system ──────────────────────────────────────────────────
@@ -39,7 +39,7 @@
   justify-content:center;white-space:nowrap}
 /* background-color, not the shorthand — the shorthand would reset the image */
 body{background-color:var(--paper);
-  background-image:radial-gradient(circle at 1px 1px,var(--dot) 1px,transparent 1.4px);
+  background-image:radial-gradient(circle at 1px 1px,var(--dot) .5px,transparent .9px);
   background-size:var(--dotgap) var(--dotgap);
   color:var(--ink);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
   font-size:14px;line-height:1.35;-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -49,10 +49,15 @@ body{background-color:var(--paper);
           calc(40px + env(safe-area-inset-bottom)) calc(var(--gut) + env(safe-area-inset-left))}
 
 header{padding:22px 0 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.mark{font-weight:800;font-variation-settings:"wdth" 118;font-size:19px;letter-spacing:-.02em;
-  text-transform:uppercase;line-height:.9}
-.mark small{display:block;font-weight:500;font-size:9px;letter-spacing:.22em;
-  font-variation-settings:"wdth" 88;margin-top:5px;color:#6a6a63}
+/* Two stacked lines filling exactly one control height, so the wordmark's ink
+   starts and ends on the buttons' edges. text-box trims the box to the cap
+   height and the baseline, which is the only way to align to the letters
+   rather than to the line box — and it uses the real metrics of whichever
+   font won, so it stays right when Archivo swaps in over the fallback.
+   Without support it degrades to the box alignment the height gives. */
+.mark{font-weight:800;font-variation-settings:"wdth" 118;letter-spacing:-.02em;
+  text-transform:uppercase;font-size:calc(var(--ctl)*.625);line-height:calc(var(--ctl)*.55);
+  height:var(--ctl);text-box:trim-both cap alphabetic}
 .adds{display:flex;gap:0}
 .btn{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;
   font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
@@ -305,7 +310,7 @@ nav button[aria-selected="true"] .n{opacity:1}
 <body>
 <div class="wrap">
   <header>
-    <div class="mark">Bookshelf<small>NO FRILLS</small></div>
+    <div class="mark">Book<br>shelf</div>
     <div class="adds">
       <button class="btn fill" id="openScan">Scan</button>
       <button class="btn" id="openSearch">Search</button>
