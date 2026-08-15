@@ -17,8 +17,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--paper:#EFEFEA;--ink:#111110;--rule:#C9C9C2;--grid:#E3E3DC;--signal:#FF3B00;--gut:20px}
+:root{--paper:#EFEFEA;--ink:#111110;--rule:#C9C9C2;--grid:#E3E3DC;--signal:#FF3B00;--gut:20px;
+  /* One height for every control in the app. Buttons and fields used to set
+     their own padding, which is why nothing lined up. Raised on touch below. */
+  --ctl:34px;--ctl-pad:13px;--ctl-field:150px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+/* ── the control system ──────────────────────────────────────────────────
+   Every button and every text field is exactly --ctl tall. appearance:none
+   is what stops iOS imposing its own intrinsic height and rounded corners;
+   inline-flex with line-height:1 is what makes a <button> and an <input>
+   land on the same metrics. Type sizes stay per-component. */
+.btn,.act,.datefix input{height:var(--ctl);line-height:1;
+  -webkit-appearance:none;appearance:none;border-radius:0}
+.btn,.act{padding:0 var(--ctl-pad);display:inline-flex;align-items:center;
+  justify-content:center;white-space:nowrap}
 body{background:var(--paper);color:var(--ink);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
   font-size:14px;line-height:1.35;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 .mono{font-family:"DM Mono","SFMono-Regular",Menlo,monospace;font-size:11px;letter-spacing:.02em}
@@ -38,7 +51,7 @@ header{padding:22px 0 14px;display:flex;align-items:flex-start;justify-content:s
   font-variation-settings:"wdth" 88;margin-top:5px;color:#6a6a63}
 .adds{display:flex;gap:0}
 .btn{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;
-  font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;padding:9px 13px;
+  font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
   cursor:pointer;transition:background .16s,color .16s;white-space:nowrap}
 .btn+.btn{border-left:0}
 .btn:hover,.btn:focus-visible{background:var(--ink);color:var(--paper)}
@@ -51,7 +64,7 @@ nav button{appearance:none;background:none;border:0;border-right:1px solid var(-
   color:#8b8b83;cursor:pointer;text-align:left;padding:8px 9px 7px;display:block;min-width:0;transition:color .2s}
 nav button:last-child{border-right:0}
 nav b{display:block;font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
-  font-variation-settings:"wdth" 76;white-space:nowrap}
+  font-variation-settings:"wdth" 76;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 nav .n{display:block;font-family:"DM Mono",monospace;font-size:13px;margin-top:3px;opacity:.6}
 nav button[aria-selected="true"]{color:var(--ink)}
 nav button[aria-selected="true"] .n{opacity:1}
@@ -61,10 +74,16 @@ nav button[aria-selected="true"] .n{opacity:1}
 
 .bar{display:flex;align-items:center;gap:14px;padding:10px 0 2px;flex-wrap:wrap}
 .bar .lab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#8b8b83;font-weight:600}
-.seg{display:flex;gap:13px}
-.seg button{appearance:none;background:none;border:0;font-family:inherit;cursor:pointer;font-size:9px;
+.seg{display:flex;gap:13px;align-items:center;min-height:var(--ctl)}
+.seg button{position:relative;appearance:none;background:none;border:0;font-family:inherit;cursor:pointer;font-size:9px;
   font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#a3a39b;padding:2px 0;
   border-bottom:1px solid transparent}
+/* The label is 9px and the underline has to stay welded to it, so the tap
+   target is a transparent band instead of padding — a hit on a pseudo counts
+   as a hit on its element. .seg reserves the band's height so it can't hang
+   over the filter input when the bar wraps on narrow screens. */
+.seg button::before{content:"";position:absolute;left:-6px;right:-6px;top:50%;
+  height:var(--ctl);transform:translateY(-50%)}
 .seg button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 .filter{margin-left:auto;display:flex;align-items:center;gap:7px;min-width:120px;flex:1;max-width:230px}
 .filter input{flex:1;border:0;border-bottom:1px solid var(--rule);background:none;font-family:inherit;
@@ -79,7 +98,8 @@ nav button[aria-selected="true"] .n{opacity:1}
 .rowmeta{position:absolute;right:0;top:5px;font-family:"DM Mono",monospace;font-size:9.5px;color:#b6b6ae}
 .shelflabel{position:absolute;left:0;top:6px;font-size:9px;font-weight:700;letter-spacing:.22em;
   text-transform:uppercase;font-variation-settings:"wdth" 76;color:#8b8b83;white-space:nowrap;background:var(--paper);padding-right:8px}
-.bookend{flex:0 0 auto;width:6px;background:var(--ink);align-self:flex-end}
+/* The one structural mark that says the shelf row ends here — it carries the accent */
+.bookend{flex:0 0 auto;width:6px;background:var(--signal);align-self:flex-end}
 
 .spine{position:relative;flex:0 0 auto;cursor:pointer;border:0;padding:0;display:block;
   transition:transform .34s cubic-bezier(.16,1,.3,1),opacity .28s;transform-origin:bottom center}
@@ -143,8 +163,11 @@ nav button[aria-selected="true"] .n{opacity:1}
 .st.ok{color:#2f6b3a}.st.no{color:var(--signal)}.st.wait{color:#a3a39b}
 @media(max-width:560px){
   .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:2px}
-  /* iOS zooms into focused inputs with font-size under 16px */
-  .filter input,.datefix input{font-size:16px}
+  /* "Recommended" runs past its quarter of the tab row on a phone. Archivo is
+     variable, so narrow the face instead of shrinking the type; the ellipsis
+     on nav b is the backstop for when the webfont hasn't loaded yet. */
+  nav button{padding:8px 6px 7px}
+  nav b{font-size:9px;letter-spacing:.03em;font-variation-settings:"wdth" 62}
 }
 
 .flyer{position:fixed;z-index:60;pointer-events:none;transform-origin:left center;backface-visibility:hidden;
@@ -163,7 +186,8 @@ nav button[aria-selected="true"] .n{opacity:1}
 
 .detail{display:grid;grid-template-columns:1fr;gap:20px;padding-top:20px}
 @media(min-width:720px){.detail{grid-template-columns:260px 1fr;gap:34px}}
-.coverslot{width:100%;max-width:200px;aspect-ratio:2/3;background-size:cover;background-position:center}
+.coverslot{width:100%;max-width:200px;aspect-ratio:2/3;
+  background-size:contain;background-repeat:no-repeat;background-position:center}
 .detail h2{font-size:clamp(21px,5.6vw,33px);font-weight:800;font-variation-settings:"wdth" 112;
   line-height:1.02;letter-spacing:-.035em;text-transform:uppercase}
 .orig{font-size:11px;color:#a3a39b;margin-top:6px;font-style:italic}
@@ -175,7 +199,7 @@ nav button[aria-selected="true"] .n{opacity:1}
 .acts{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px}
 .acts.second{margin-top:9px}
 .act{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;font-size:10px;
-  font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:9px 13px;cursor:pointer;
+  font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;
   transition:background .16s,color .16s}
 .act:hover,.act:focus-visible{background:var(--ink);color:var(--paper)}
 .act.on{background:var(--ink);color:var(--paper)}
@@ -186,10 +210,20 @@ nav button[aria-selected="true"] .n{opacity:1}
 .pagerow{display:flex;align-items:center;gap:10px;margin-top:16px}
 .pagerow input[type=range]{flex:1;accent-color:var(--signal)}
 .datefix{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+/* Width lives on the label, not the input: the label is a column flex box, so
+   its width is max(label text, field). Pinning it is what makes all three
+   fields provably the same size rather than coincidentally similar. */
 .datefix label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#6a6a63;font-weight:600;
-  display:flex;flex-direction:column;gap:4px}
+  display:flex;flex-direction:column;gap:4px;width:var(--ctl-field)}
 .datefix input{font-family:"DM Mono",monospace;font-size:11px;border:1px solid var(--rule);background:none;
-  padding:5px 7px;color:var(--ink)}
+  padding:0 8px;width:100%;color:var(--ink)}
+/* WebKit ignores line-height on a date field and centres the value its own
+   way; making the input a flex box is what actually centres it on iOS. */
+.datefix input[type=date]{display:flex;align-items:center}
+.datefix input[type=date]::-webkit-date-and-time-value{margin:0;line-height:1;text-align:left}
+.datefix input[type=number]{-moz-appearance:textfield}
+.datefix input[type=number]::-webkit-outer-spin-button,
+.datefix input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
 .searchin{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ink);padding:16px 0 10px;margin-top:14px}
 .searchin input{flex:1;border:0;background:none;font-family:inherit;font-size:clamp(19px,5vw,26px);font-weight:800;
@@ -202,7 +236,23 @@ nav button[aria-selected="true"] .n{opacity:1}
 .res{display:flex;gap:13px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--rule);width:100%;
   background:none;border-left:0;border-right:0;border-top:0;text-align:left;font-family:inherit;cursor:pointer}
 .res:hover{background:rgba(17,17,16,.035)}
-.res .th{flex:0 0 34px;height:51px;background:var(--grid);background-size:cover;background-position:center}
+.res .th{flex:0 0 34px;width:34px;height:51px;background:var(--grid);
+  background-size:contain;background-repeat:no-repeat;background-position:center}
+
+/* Search hits carry three shelf buttons, so the row can't be one <button>.
+   The title button stretches an invisible layer over the whole row for the
+   default add; the shelf buttons sit above it and take their own taps. */
+.res.pick{display:grid;grid-template-columns:34px 1fr;column-gap:13px;row-gap:9px;
+  align-items:start;position:relative;cursor:default}
+.res.pick .th{grid-row:1/span 2}
+.reshit{grid-column:2;display:flex;align-items:flex-start;gap:8px;width:100%;background:none;border:0;
+  padding:0;text-align:left;font-family:inherit;color:inherit;cursor:pointer}
+.reshit .info{display:block;min-width:0}
+.reshit .ti,.reshit .au{display:block}
+.reshit::after{content:"";position:absolute;inset:0}
+.reshit:focus-visible{outline:none}
+.reshit:focus-visible::after{outline:2px solid var(--ink);outline-offset:-3px}
+.shelfpick{grid-column:2;display:flex;gap:6px;flex-wrap:wrap;position:relative;z-index:1}
 .res .ti{font-size:13.5px;font-weight:700;line-height:1.2}
 .res .au{font-size:11px;color:#6a6a63;margin-top:3px}
 .res .add{margin-left:auto;font-size:16px;color:#6a6a63;padding-left:8px}
@@ -215,6 +265,24 @@ nav button[aria-selected="true"] .n{opacity:1}
 .toast button{appearance:none;background:none;border:0;color:var(--signal);font-family:inherit;font-size:10px;
   font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* iOS zoom guard — keep last in the sheet.
+   Mobile Safari zooms the whole page whenever it focuses a control with a
+   font-size under 16px, and it has ignored maximum-scale since iOS 10, so
+   16px type is the only cure. The component rules above carry the same
+   specificity, so these have to come after them to win. pointer:coarse
+   catches every device with an on-screen keyboard, not just narrow ones. */
+@media (pointer:coarse){
+  /* 44px is Apple's minimum tap target; every control grows together */
+  :root{--ctl:44px;--ctl-pad:15px}
+  input,select,textarea{font-size:16px}
+  .filter input{font-size:16px;letter-spacing:.04em}
+  /* 16px type makes three fields too wide for one phone row, so drop the flex
+     row for a two-column grid: the dates pair up, the year sits under them */
+  .datefix{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+  .datefix label{width:auto;min-width:0}
+  .datefix input{font-size:16px;min-width:0}
+}
 </style>
 </head>
 <body>
@@ -272,6 +340,7 @@ const KEY="bokhylle:books", SKEY="bokhylle:settings";
 let books=[], view="reading", sort="added", regFilter="all", regMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
 let animateShelf=true; // entrance animation only on first paint and view switches
+let lastQuery="", justAdded=null; // for the "back to results" link after an add
 
 const $ = s => document.querySelector(s);
 const el = (t,c) => { const e=document.createElement(t); if(c) e.className=c; return e; };
@@ -722,59 +791,118 @@ function unfold(src,b,done){
 }
 
 /* ═══════════ book detail ═══════════ */
+/* Covers arrive in every shape — square reprints, tall paperbacks. Letting the
+   slot take the file's own ratio shows the whole jacket instead of trimming
+   the title off it. Falls back to the 2/3 in the stylesheet if the load fails. */
+function fitRatio(node,url){
+  const im=new Image();
+  im.onload=()=>{ if(im.naturalWidth && im.naturalHeight)
+    node.style.aspectRatio=`${im.naturalWidth}/${im.naturalHeight}`; };
+  im.src=url;
+}
+
 async function openBook(b,src){
+  if(src) justAdded=null;              // opened from the shelf, not from a search
   unfold(src,b,()=>openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf],buildDetail(b)));
   if(!b.blurb && b.ref && b.src && SOURCES[b.src].blurb){
     try{
       const t=await SOURCES[b.src].blurb(b.ref);
       if(t){ b.blurb=t; save();
-        const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent=t; }
-      else { const s=document.querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent="No description on record."; }
+        const s=$("#pbody").querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent=t; }
+      else { const s=$("#pbody").querySelector(`[data-blurb="${b.id}"]`); if(s) s.textContent="No description on record."; }
     }catch(e){}
   }
 }
 function refresh(b){ save(); render(); openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf], buildDetail(b)); }
 
+/* Update an open detail panel in place. refresh() would do it by rebuilding,
+   but that discards a half-typed date and the focus that goes with it — and
+   the whole point of opening the panel on add is that you type dates in it.
+   Only the fields an edition swap actually touches are patched; .datefix is
+   deliberately left alone. A no-op if the panel closed or moved on. */
+function patchDetail(b){
+  const scope=$("#pbody");
+  const cov=scope.querySelector(`[data-cover="${b.id}"]`);
+  if(!cov) return;
+  cov.style.backgroundColor=b.color;
+  const u=b.coverBig||b.coverUrl;
+  if(u && cov.dataset.coverFor!==u){
+    cov.dataset.coverFor=u; cov.style.backgroundImage=`url(${u})`; fitRatio(cov,u);
+  }
+  scope.querySelector(`[data-title="${b.id}"]`).textContent=b.title;
+  const o=scope.querySelector(`[data-orig="${b.id}"]`);
+  const showOrig=b.origTitle && b.origTitle!==b.title;
+  o.hidden=!showOrig; o.textContent=showOrig?"Original title: "+b.origTitle:"";
+  scope.querySelector(`[data-byline="${b.id}"]`).textContent=bylineText(b);
+  fillMeta(scope.querySelector(`[data-meta="${b.id}"]`), b);
+  const pr=scope.querySelector(`[data-pagerow="${b.id}"]`);
+  if(pr){                                 // a new page count rescales the slider
+    pr.querySelector("input[type=range]").max=b.pages||300;
+    pr.querySelector(".mono").textContent=`p. ${b.page||0}/${b.pages}`;
+  }
+}
+
+/* Shared by buildDetail and patchDetail so the two can't drift apart. */
+const bylineText = b => [b.author, b.year, b.lang?(LANGS[b.lang]||b.lang):null, b.publisher].filter(Boolean).join(" · ");
+function fillMeta(node,b){
+  node.innerHTML="";
+  [["Pages",b.pages||"—"],["ISBN",b.isbn||"—"],["Source",b.src?SOURCES[b.src].label:"—"],["Added",b.addedAt||"—"]]
+    .forEach(([k,v])=>{ const r=el("div","row"); r.innerHTML=`<span>${k}</span><span class="mono">${esc(v)}</span>`; node.appendChild(r); });
+}
+
 function buildDetail(b){
   const wrap=el("div","detail");
   const left=el("div"), cov=el("div","coverslot");
-  cov.style.background=b.color;
-  if(b.coverBig||b.coverUrl) cov.style.backgroundImage=`url(${b.coverBig||b.coverUrl})`;
+  cov.dataset.cover=b.id;
+  cov.style.backgroundColor=b.color;
+  const covUrl=b.coverBig||b.coverUrl;
+  if(covUrl){ cov.dataset.coverFor=covUrl; cov.style.backgroundImage=`url(${covUrl})`; fitRatio(cov,covUrl); }
   left.appendChild(cov);
 
   const right=el("div");
-  const h=el("h2"); h.textContent=b.title;
+  const h=el("h2"); h.dataset.title=b.id; h.textContent=b.title;
   right.appendChild(h);
-  if(b.origTitle && b.origTitle!==b.title){
-    const o=el("div","orig"); o.textContent="Original title: "+b.origTitle; right.appendChild(o);
-  }
-  const by=el("div","byline");
-  by.textContent=[b.author, b.year, b.lang?(LANGS[b.lang]||b.lang):null, b.publisher].filter(Boolean).join(" · ");
+  /* Always in the DOM, hidden when empty, so an edition swap can reveal it
+     without rebuilding the panel out from under whoever is typing a date. */
+  const o=el("div","orig"); o.dataset.orig=b.id;
+  const showOrig=b.origTitle && b.origTitle!==b.title;
+  o.hidden=!showOrig; if(showOrig) o.textContent="Original title: "+b.origTitle;
+  right.appendChild(o);
+
+  const by=el("div","byline"); by.dataset.byline=b.id;
+  by.textContent=bylineText(b);
   const blurb=el("p","blurb"); blurb.dataset.blurb=b.id;
   blurb.textContent=b.blurb||(b.ref?"Fetching description …":"No description.");
   right.append(by,blurb);
 
-  const meta=el("div","meta");
-  [["Pages",b.pages||"—"],["ISBN",b.isbn||"—"],["Source",b.src?SOURCES[b.src].label:"—"],["Added",b.addedAt||"—"]]
-    .forEach(([k,v])=>{ const r=el("div","row"); r.innerHTML=`<span>${k}</span><span class="mono">${esc(v)}</span>`; meta.appendChild(r); });
+  const meta=el("div","meta"); meta.dataset.meta=b.id;
+  fillMeta(meta,b);
   right.appendChild(meta);
 
   const df=el("div","datefix");
   [["Started","started"],["Finished","finished"]].forEach(([lab,key])=>{
     const l=el("label"); l.textContent=lab;
     const i=el("input"); i.type="date"; i.value=b[key]||"";
-    i.onchange=()=>{ b[key]=i.value||null; if(key==="finished"&&i.value) b.finishedYear=null; refresh(b); };
+    /* save+render, not refresh — rebuilding the panel here would throw away
+       the field you are still working in and jump the scroll to the top. */
+    i.onchange=()=>{ b[key]=i.value||null; if(key==="finished"&&i.value){ b.finishedYear=null; syncYear(); } save(); render(); };
     l.appendChild(i); df.appendChild(l);
   });
   const yl=el("label"); yl.textContent="Or just the year";
-  const yi=el("input"); yi.type="number"; yi.min=1400; yi.max=2100; yi.placeholder="YYYY";
-  yi.style.width="86px"; yi.value=b.finishedYear||"";
-  yi.onchange=()=>{ b.finishedYear=yi.value?String(yi.value):null; if(b.finishedYear) b.finished=null; refresh(b); };
+  const yi=el("input"); yi.type="number"; yi.min=1400; yi.max=2100; yi.placeholder="YYYY"; yi.inputMode="numeric";
+  yi.value=b.finishedYear||"";
+  /* The exact date and the bare year are mutually exclusive; clearing the
+     other field on screen is what makes that visible instead of silent. */
+  function syncYear(){ yi.value=b.finishedYear||""; }
+  const fin=()=>df.querySelectorAll("input[type=date]")[1];
+  yi.onchange=()=>{ b.finishedYear=yi.value?String(yi.value):null;
+    if(b.finishedYear){ b.finished=null; fin().value=""; }
+    save(); render(); };
   yl.appendChild(yi); df.appendChild(yl);
   right.appendChild(df);
 
   if(b.shelf==="reading"||b.gaveUp){
-    const pr=el("div","pagerow");
+    const pr=el("div","pagerow"); pr.dataset.pagerow=b.id;
     const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`p. ${b.page||0}/${b.pages}`;
     const range=el("input"); range.type="range"; range.min=0; range.max=b.pages||300; range.value=b.page||0;
     range.oninput=()=>{ b.page=+range.value; lbl.textContent=`p. ${b.page}/${b.pages}`; };
@@ -798,6 +926,9 @@ function buildDetail(b){
 
   // secondary
   const more=el("div","acts second");
+  /* Adding replaces the results list in place, so without this the flow dead
+     ends and entering a backlog means reopening search for every book. */
+  if(b.id===justAdded && lastQuery) add(more,"quiet","← Back to results",()=>searchPanel(lastQuery));
   if(b.shelf!=="toread") add(more,"quiet","→ To read",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
   if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Change edition",()=>openEditions(b));
   add(more,"quiet","Remove",()=>{
@@ -901,7 +1032,7 @@ function searchPanel(prefill){
   let timer;
   async function go(now){
     clearTimeout(timer);
-    const q=inp.value.trim();
+    const q=inp.value.trim(); lastQuery=q;
     if(q.length<3){ results.innerHTML=""; hint.textContent="Type at least three characters"; return; }
     hint.textContent = isIsbn(q) ? "Looking up ISBN …" : "Searching …";
     timer=setTimeout(async()=>{
@@ -920,45 +1051,98 @@ function searchPanel(prefill){
 }
 $("#openSearch").onclick=()=>searchPanel();
 
+/* A search hit needs three shelf buttons, and buttons can't nest, so the row
+   is a div: the title is one button covering the whole row for the default
+   add, the shelf buttons sit on top of it. One delegated listener serves
+   both, since the row button carries an empty data-shelf. */
 function resultRow(hit){
-  const r=el("button","res");
-  const th=el("div","th"); if(hit.coverUrl) th.style.backgroundImage=`url(${hit.coverUrl})`;
-  const info=el("div");
+  const r=el("div","res pick");
+  r.setAttribute("role","group");
+  r.setAttribute("aria-label",hit.title);
+
+  const th=el("div","th"); th.setAttribute("aria-hidden","true");
+  if(hit.coverUrl) th.style.backgroundImage=`url(${hit.coverUrl})`;
+
   const sub=[hit.author,hit.year,hit.lang?(LANGS[hit.lang]||hit.lang):null].filter(Boolean).join(" · ");
-  info.innerHTML=`<div class="ti">${esc(hit.title)}</div><div class="au">${esc(sub)}</div>`;
-  const add=el("div","add"); add.textContent="+";
-  r.append(th,info,add);
-  r.onclick=async()=>{
-    const b={
-      id:uid(), title:hit.title, origTitle:null, author:hit.author, year:hit.year, pages:hit.pages,
-      isbn:hit.isbn, lang:hit.lang, publisher:hit.publisher||null,
-      coverUrl:hit.coverUrl, coverBig:hit.coverBig||hit.coverUrl, ref:hit.ref, src:hit.source,
-      blurb:hit.blurb||null, shelf: view==="rec"?"toread":view, rec: view==="rec",
-      gaveUp:false, page:0, started:null, finished:null, finishedYear:null,
-      addedAt:today(), color:fallbackColor(hit.title)
-    };
-    books.push(b); render(); save(); closePanel();
-    toast(`Added to ${VIEWS[b.shelf]}`);
-    // the right edition in the preferred language
-    if(prefLang!=="any" && b.ref && SOURCES[b.src].canEditions && b.lang!==prefLang){
-      try{
-        const eds=await SOURCES[b.src].editions(b.ref);
-        const inLang=eds.filter(e=>e.langs.includes(prefLang));
-        const pick=inLang.find(e=>e.coverUrl&&e.pages)||inLang.find(e=>e.coverUrl)||inLang[0];
-        if(pick){
-          b.origTitle=b.title; b.title=pick.title; b.lang=prefLang;
-          if(pick.coverUrl){ b.coverUrl=pick.coverUrl; b.coverBig=pick.coverBig||pick.coverUrl; }
-          if(pick.isbn) b.isbn=pick.isbn;
-          if(pick.pages) b.pages=pick.pages;
-          if(pick.publisher) b.publisher=pick.publisher;
-          toast(`${LANGS[prefLang]} edition selected`);
-        }
-      }catch(e){}
-    }
-    const c=await extractColor(b.coverUrl); if(c) b.color=c;
-    render(); save();
-  };
+  /* No "+" glyph here any more: with three labelled shelves right below it,
+     a plus whose destination depends on the open tab is the implicit guess
+     this change exists to remove. Tapping the row still adds — it just
+     doesn't advertise a shelf it can't name. */
+  const hitbtn=el("button","reshit"); hitbtn.dataset.shelf="";
+  hitbtn.innerHTML=`<span class="info"><span class="ti">${esc(hit.title)}</span>`+
+    `<span class="au">${esc(sub)}</span></span>`;
+  hitbtn.setAttribute("aria-label",`Add “${hit.title}” to ${VIEWS[defaultShelf()]}`);
+
+  const picks=el("div","shelfpick");
+  SHELF_PICKS.forEach(([k,t])=>{
+    const x=el("button","act quiet"); x.textContent=t; x.dataset.shelf=k;
+    x.setAttribute("aria-label",`Add “${hit.title}” to ${VIEWS[k]}`);
+    picks.appendChild(x);
+  });
+
+  r.append(th,hitbtn,picks);
+  r.addEventListener("click",e=>{
+    const btn=e.target.closest("[data-shelf]"); if(!btn) return;
+    addBook(hit, btn.dataset.shelf||defaultShelf());
+  });
   return r;
+}
+
+const SHELF_PICKS=[["toread","To read"],["reading","Reading now"],["read","Read"]];
+const defaultShelf = () => (view==="rec"||!VIEWS[view]) ? "toread" : view;
+
+async function addBook(hit, shelf){
+  const target = shelf || defaultShelf();
+  const b={
+    id:uid(), title:hit.title, origTitle:null, author:hit.author, year:hit.year, pages:hit.pages,
+    isbn:hit.isbn, lang:hit.lang, publisher:hit.publisher||null,
+    coverUrl:hit.coverUrl, coverBig:hit.coverBig||hit.coverUrl, ref:hit.ref, src:hit.source,
+    blurb:hit.blurb||null, shelf: target, rec: view==="rec",
+    gaveUp:false, page:0,
+    started: target==="reading" ? today() : null,
+    finished:null,
+    /* Seed the year, not the date: most books are logged long after they were
+       read, and "finished today" would be a lie. The year is enough to file
+       it under the right heading, and the field is right there to correct. */
+    finishedYear: target==="read" ? String(new Date().getFullYear()) : null,
+    addedAt:today(), color:fallbackColor(hit.title)
+  };
+  books.push(b); render(); save();
+  justAdded=b.id;
+  openBook(b,null);                    // land on the book, dates ready to fill
+  toast(`Added to ${VIEWS[b.shelf]}`, ()=>undoAdd(b));
+  await enrichNewBook(b);
+}
+
+function undoAdd(b){
+  books=books.filter(x=>x.id!==b.id);
+  if(justAdded===b.id) justAdded=null;
+  save(); render();
+  // editing a book that is no longer in the array would silently lose the edit
+  if($("#pbody").querySelector(`[data-cover="${b.id}"]`)) closePanel();
+}
+
+/* Swap in the preferred-language edition and pull the cover colour, then
+   patch whatever panel is open. No toast: it would replace the one carrying
+   Undo, and the panel shows the change plainly enough by itself. */
+async function enrichNewBook(b){
+  if(prefLang!=="any" && b.ref && SOURCES[b.src].canEditions && b.lang!==prefLang){
+    try{
+      const eds=await SOURCES[b.src].editions(b.ref);
+      const inLang=eds.filter(e=>e.langs.includes(prefLang));
+      const pick=inLang.find(e=>e.coverUrl&&e.pages)||inLang.find(e=>e.coverUrl)||inLang[0];
+      if(pick){
+        b.origTitle=b.title; b.title=pick.title; b.lang=prefLang;
+        if(pick.coverUrl){ b.coverUrl=pick.coverUrl; b.coverBig=pick.coverBig||pick.coverUrl; }
+        if(pick.isbn) b.isbn=pick.isbn;
+        if(pick.pages) b.pages=pick.pages;
+        if(pick.publisher) b.publisher=pick.publisher;
+      }
+    }catch(e){}
+  }
+  const c=await extractColor(b.coverUrl); if(c) b.color=c;
+  if(!books.includes(b)) return;       // undone while we were fetching
+  render(); save(); patchDetail(b);
 }
 
 /* ═══════════ scanning ═══════════ */
