@@ -33,10 +33,16 @@
    is what stops iOS imposing its own intrinsic height and rounded corners;
    inline-flex with line-height:1 is what makes a <button> and an <input>
    land on the same metrics. Type sizes stay per-component. */
-.btn,.act,.datefix input{height:var(--ctl);line-height:1;
+.btn,.act,.datefix input,.qadd input,.manualform input{height:var(--ctl);line-height:1;
   -webkit-appearance:none;appearance:none;border-radius:0}
 .btn,.act{padding:0 var(--ctl-pad);display:inline-flex;align-items:center;
   justify-content:center;white-space:nowrap}
+/* A button that never states a colour falls through to the UA's, and that is
+   not the same everywhere: Chromium gives pure black, iOS Safari gives the
+   system blue. The register rows are plain buttons, so they read blue on the
+   phone and black on the desktop. Inherit instead — every component that
+   wants its own colour already says so, and outranks this. */
+button{color:inherit}
 /* background-color, not the shorthand — the shorthand would reset the image */
 body{background-color:var(--paper);
   background-image:radial-gradient(circle at 1px 1px,var(--dot) .5px,transparent .9px);
@@ -247,6 +253,42 @@ nav button[aria-selected="true"] .n{opacity:1}
 .datefix input[type=number]::-webkit-outer-spin-button,
 .datefix input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
+.notes{margin-top:24px;border-top:1px solid var(--ink);padding-top:14px}
+.sechead{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#6a6a63;font-weight:600}
+.notefield{width:100%;margin-top:8px;border:1px solid var(--rule);background:none;color:var(--ink);
+  font-family:inherit;font-size:13px;line-height:1.5;padding:9px 10px;min-height:86px;resize:vertical;
+  -webkit-appearance:none;appearance:none;border-radius:0}
+.notefield:focus,.qadd input:focus{outline:none;border-color:var(--ink)}
+.qlist:not(:empty){margin-top:8px;border-top:1px solid var(--rule)}
+.q{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:baseline;
+  padding:9px 0;border-bottom:1px solid var(--rule)}
+.q .qp{font-family:"DM Mono",monospace;font-size:10px;color:#a3a39b;white-space:nowrap}
+.q .qt{font-size:13px;line-height:1.5;color:#2a2a26}
+.qx{appearance:none;background:none;border:0;font-family:inherit;font-size:11px;color:#a3a39b;
+  cursor:pointer;padding:0 2px;line-height:1}
+.qx:hover{color:var(--signal)}
+.qadd{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.qadd input{border:1px solid var(--rule);background:none;color:var(--ink);font-family:inherit;
+  font-size:13px;padding:0 9px}
+.qadd input[type=number]{width:74px;font-family:"DM Mono",monospace;font-size:11px;-moz-appearance:textfield}
+.qadd input[type=number]::-webkit-outer-spin-button,
+.qadd input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qadd input[type=text]{flex:1;min-width:150px}
+/* A book you have written about carries a mark, so the shelf shows which */
+.spine .noted{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);
+  width:9px;height:1px;background:rgba(255,255,255,.8)}
+
+.manualoffer{padding:16px 0 4px;display:flex;flex-direction:column;align-items:flex-start;gap:11px}
+.manualform{padding-top:18px;display:flex;flex-direction:column;gap:11px;max-width:420px}
+.manualform label{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#6a6a63;
+  font-weight:600;display:flex;flex-direction:column;gap:5px}
+.manualform input{border:1px solid var(--rule);background:none;color:var(--ink);
+  font-family:inherit;font-size:13px;padding:0 9px;width:100%}
+.manualform input:focus{outline:none;border-color:var(--ink)}
+.manualform input[type=number]{-moz-appearance:textfield}
+.manualform input[type=number]::-webkit-outer-spin-button,
+.manualform input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
 .searchin{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ink);padding:16px 0 10px;margin-top:14px}
 .searchin input{flex:1;border:0;background:none;font-family:inherit;font-size:clamp(19px,5vw,26px);font-weight:800;
   font-variation-settings:"wdth" 112;letter-spacing:-.03em;color:var(--ink);text-transform:uppercase}
@@ -304,6 +346,9 @@ nav button[aria-selected="true"] .n{opacity:1}
   .datefix{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
   .datefix label{width:auto;min-width:0}
   .datefix input{font-size:16px;min-width:0}
+  /* Any `.class input` rule outranks the bare selector above, so every text
+     control that sets its own size has to be named here or it re-enables zoom. */
+  .notefield,.qadd input,.manualform input{font-size:16px}
 }
 </style>
 </head>
@@ -670,6 +715,7 @@ function makeSpine(b,i){
   const t=el("div","t"); t.textContent=b.title; t.style.color=readable(b.color);
   body.appendChild(t);
   if(b.rec && view!=="rec") body.appendChild(el("div","star"));
+  if(hasNotes(b)) body.appendChild(el("div","noted"));
   if(b.shelf==="reading" && b.page>0){
     const p=el("div","prog"); p.style.width=Math.min(100,(b.page/(b.pages||1))*100)+"%"; body.appendChild(p);
   }
@@ -716,7 +762,7 @@ function buildRegister(list){
     const r=el("button","regrow"+(b.gaveUp?" gave":""));
     r.innerHTML=`<div class="idx">${String(i--).padStart(2,"0")}</div>
       <div><div class="ti">${esc(b.title)}${b.rec?" ●":""}</div>
-        <div class="au">${esc(b.author)}${b.gaveUp?' <span class="tagx">Gave up</span>':""}</div></div>
+        <div class="au">${esc(b.author)}${b.gaveUp?' <span class="tagx">Gave up</span>':""}${hasNotes(b)?' <span class="tagx">Notes</span>':""}</div></div>
       <div class="dt">${esc(when)}<br>${extent}</div>`;
     r.onclick=()=>openBook(b,r);
     reg.appendChild(r);
@@ -883,7 +929,7 @@ function patchDetail(b){
   const pr=scope.querySelector(`[data-pagerow="${b.id}"]`);
   if(pr){                                 // a new page count rescales the slider
     pr.querySelector("input[type=range]").max=b.pages||300;
-    pr.querySelector(".mono").textContent=`p. ${b.page||0}/${b.pages}`;
+    pr.querySelector(".mono").textContent=`p. ${b.page||0}/${b.pages||"?"}`;
   }
 }
 
@@ -948,9 +994,9 @@ function buildDetail(b){
 
   if(b.shelf==="reading"||b.gaveUp){
     const pr=el("div","pagerow"); pr.dataset.pagerow=b.id;
-    const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`p. ${b.page||0}/${b.pages}`;
+    const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`p. ${b.page||0}/${b.pages||"?"}`;
     const range=el("input"); range.type="range"; range.min=0; range.max=b.pages||300; range.value=b.page||0;
-    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`p. ${b.page}/${b.pages}`; };
+    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`p. ${b.page}/${b.pages||"?"}`; };
     range.onchange=()=>{ save(); render(); };
     pr.append(lbl,range); right.appendChild(pr);
   }
@@ -982,9 +1028,64 @@ function buildDetail(b){
     toast("Removed", ()=>{ books.splice(lastRemoved.idx,0,lastRemoved.b); save(); render(); });
   });
   right.appendChild(more);
+  right.appendChild(buildNotes(b));
 
   wrap.append(left,right);
   return wrap;
+}
+
+/* ═══════════ notes and quotes ═══════════ */
+const hasNotes = b => !!((b.note||"").trim() || (b.quotes||[]).length);
+
+function buildNotes(b){
+  const box=el("div","notes");
+  const h=el("div","sechead"); h.textContent="Notes"; box.appendChild(h);
+
+  const ta=el("textarea","notefield");
+  ta.placeholder="What you want to remember about this one.";
+  ta.value=b.note||"";
+  ta.setAttribute("aria-label","Note about this book");
+  /* Save while typing but never re-render: a render would repaint the shelf
+     behind, and refresh would take the textarea out from under the cursor.
+     The shelf mark can wait until you leave the field. */
+  let t;
+  ta.oninput=()=>{ b.note=ta.value; clearTimeout(t); t=setTimeout(save,500); };
+  ta.onchange=()=>{ b.note=ta.value; clearTimeout(t); save(); render(); };
+  box.appendChild(ta);
+
+  const qh=el("div","sechead"); qh.style.marginTop="18px"; qh.textContent="Quotes";
+  box.appendChild(qh);
+  const list=el("div","qlist"); box.appendChild(list);
+
+  function drawQuotes(){
+    list.innerHTML="";
+    (b.quotes||[]).forEach((q,i)=>{
+      const row=el("div","q");
+      const p=el("div","qp"); p.textContent=q.page?`p. ${q.page}`:"—";
+      const txt=el("div","qt"); txt.textContent=q.text;
+      const x=el("button","qx"); x.textContent="✕";
+      x.setAttribute("aria-label",`Remove quote from page ${q.page||"unknown"}`);
+      x.onclick=()=>{ b.quotes.splice(i,1); save(); render(); drawQuotes(); };
+      row.append(p,txt,x); list.appendChild(row);
+    });
+  }
+  drawQuotes();
+
+  const addrow=el("div","qadd");
+  const pg=el("input"); pg.type="number"; pg.min=1; pg.max=9999; pg.placeholder="p."; pg.inputMode="numeric";
+  pg.setAttribute("aria-label","Page number");
+  const tx=el("input"); tx.type="text"; tx.placeholder="Passage worth keeping";
+  tx.setAttribute("aria-label","Quote");
+  const go=el("button","act quiet"); go.textContent="Add quote";
+  const commit=()=>{
+    const v=tx.value.trim(); if(!v) return;
+    (b.quotes=b.quotes||[]).push({page:pg.value?+pg.value:null, text:v});
+    pg.value=""; tx.value=""; save(); render(); drawQuotes(); tx.focus();
+  };
+  go.onclick=commit;
+  tx.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } };
+  addrow.append(pg,tx,go); box.appendChild(addrow);
+  return box;
 }
 
 /* ═══════════ editions ═══════════ */
@@ -1088,10 +1189,24 @@ function searchPanel(prefill){
     hint.textContent = isIsbn(q) ? "Looking up ISBN …" : "Searching …";
     timer=setTimeout(async()=>{
       try{
-        const hits=await SOURCES[source].search(q);
-        hint.textContent = hits.length ? `${hits.length} results in ${SOURCES[source].label}` : "No results. Try a different spelling or switch catalogs.";
+        let hits=await SOURCES[source].search(q), from=source;
+        /* Neither catalog is complete — Open Library is thin on small European
+           publishers, Google Books is thin on older and self-published work.
+           Rather than make the reader work that out and flip the toggle, try
+           the other one and say which answered. */
+        if(!hits.length){
+          const other = source==="ol" ? "gb" : "ol";
+          try{ const alt=await SOURCES[other].search(q); if(alt.length){ hits=alt; from=other; } }catch(e){}
+        }
         results.innerHTML="";
         hits.forEach(h=>results.appendChild(resultRow(h)));
+        if(hits.length) hint.textContent = from===source
+          ? `${hits.length} results in ${SOURCES[from].label}`
+          : `Nothing in ${SOURCES[source].label} — ${hits.length} in ${SOURCES[from].label}`;
+        else {
+          hint.textContent="Neither catalog has it.";
+          results.appendChild(manualOffer(q));
+        }
         $("#panel").scrollTop=0;      // a new result set starts at its own top
       }catch(e){
         hint.textContent=`No response from ${SOURCES[source].label}. Try the other catalog.`;
@@ -1141,6 +1256,59 @@ function resultRow(hit){
 }
 
 const SHELF_PICKS=[["toread","To read"],["reading","Reading now"],["read","Read"]];
+
+/* Some books are in no catalogue at all — small presses especially. Offered
+   only after both have been asked and come back empty, so it reads as the
+   last resort it is rather than a competing path. */
+function manualOffer(q){
+  const w=el("div","manualoffer");
+  const p=el("div","hint"); p.style.marginTop="0";
+  p.textContent="Small presses often sit in neither. You can enter it yourself.";
+  const b=el("button","act"); b.textContent="Enter it by hand";
+  b.onclick=()=>manualPanel(q);
+  w.append(p,b);
+  return w;
+}
+
+function manualPanel(q){
+  const w=el("div","manualform");
+  const fields={};
+  /* An ISBN typed into search is an ISBN, not a title — put it where it goes. */
+  const isbnSeed = isIsbn(q||"") ? q.replace(/\D/g,"") : "";
+  [["title","Title","text"],["author","Author","text"],["pages","Pages","number"],
+   ["year","Year","number"],["isbn","ISBN","text"]].forEach(([k,lab,type])=>{
+    const l=el("label"); l.textContent=lab;
+    const i=el("input"); i.type=type;
+    if(type==="number") i.inputMode="numeric";
+    if(k==="title" && !isbnSeed) i.value=q||"";
+    if(k==="isbn") i.value=isbnSeed;
+    i.setAttribute("aria-label",lab);
+    fields[k]=i; l.appendChild(i); w.appendChild(l);
+  });
+
+  const err=el("div","hint"); err.style.color="var(--signal)"; err.hidden=true;
+  const picks=el("div","acts");
+  const label=el("div","sechead"); label.style.marginTop="18px"; label.textContent="Put it on";
+  SHELF_PICKS.forEach(([k,t])=>{
+    const x=el("button","act"); x.textContent=t;
+    x.onclick=()=>{
+      const title=fields.title.value.trim();
+      if(!title){ err.hidden=false; err.textContent="A title, at least."; fields.title.focus(); return; }
+      addBook({
+        title, author:fields.author.value.trim()||"Unknown",
+        year:fields.year.value?+fields.year.value:null,
+        pages:fields.pages.value?+fields.pages.value:null,
+        isbn:fields.isbn.value.replace(/[^\dXx]/g,"")||null,
+        lang:null, publisher:null, coverUrl:null, coverBig:null,
+        ref:null, source:null, blurb:null
+      }, k);
+    };
+    picks.appendChild(x);
+  });
+  w.append(err,label,picks);
+  openPanel("Enter a book",w);
+  setTimeout(()=>fields[isbnSeed?"title":"author"].focus(),380);
+}
 const defaultShelf = () => (view==="rec"||!VIEWS[view]) ? "toread" : view;
 
 async function addBook(hit, shelf){
@@ -1157,7 +1325,7 @@ async function addBook(hit, shelf){
        read, and "finished today" would be a lie. The year is enough to file
        it under the right heading, and the field is right there to correct. */
     finishedYear: target==="read" ? String(new Date().getFullYear()) : null,
-    addedAt:today(), color:fallbackColor(hit.title)
+    addedAt:today(), color:fallbackColor(hit.title), note:"", quotes:[]
   };
   books.push(b); render(); save();
   justAdded=b.id;
@@ -1441,7 +1609,7 @@ $("#importfile").onchange=async e=>{
       if(seen.has(k)) return;
       seen.add(k);
       books.push(Object.assign({id:uid(), rec:false, gaveUp:false, page:0, addedAt:today(),
-        color:fallbackColor(b.title||"?")}, b, {id:uid()}));
+        note:"", quotes:[], color:fallbackColor(b.title||"?")}, b, {id:uid()}));
       added++;
     });
     await save(); render();
