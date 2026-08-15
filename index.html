@@ -143,6 +143,8 @@ nav button[aria-selected="true"] .n{opacity:1}
 .st.ok{color:#2f6b3a}.st.no{color:var(--signal)}.st.wait{color:#a3a39b}
 @media(max-width:560px){
   .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:2px}
+  /* iOS zooms into focused inputs with font-size under 16px */
+  .filter input,.datefix input{font-size:16px}
 }
 
 .flyer{position:fixed;z-index:60;pointer-events:none;transform-origin:left center;backface-visibility:hidden;
@@ -227,8 +229,8 @@ nav button[aria-selected="true"] .n{opacity:1}
   </header>
 
   <nav id="tabs" role="tablist">
-    <button role="tab" data-view="toread" aria-selected="true"><b>To read</b><span class="n" data-count="toread">00</span></button>
-    <button role="tab" data-view="reading" aria-selected="false"><b>Reading</b><span class="n" data-count="reading">00</span></button>
+    <button role="tab" data-view="reading" aria-selected="true"><b>Reading</b><span class="n" data-count="reading">00</span></button>
+    <button role="tab" data-view="toread" aria-selected="false"><b>To read</b><span class="n" data-count="toread">00</span></button>
     <button role="tab" data-view="rec" aria-selected="false"><b>Recommended</b><span class="n" data-count="rec">00</span></button>
     <button role="tab" data-view="read" aria-selected="false"><b>Read</b><span class="n" data-count="read">00</span></button>
   </nav>
@@ -263,11 +265,11 @@ nav button[aria-selected="true"] .n{opacity:1}
 
 <script>
 /* ═══════════ constants ═══════════ */
-const VIEWS = {toread:"To read", reading:"Reading", rec:"Recommended", read:"Read"};
+const VIEWS = {reading:"Reading", toread:"To read", rec:"Recommended", read:"Read"};
 const LANGS = {nor:"Norwegian", nob:"Norwegian", nno:"Nynorsk", eng:"English", swe:"Swedish", dan:"Danish",
                ger:"German", fre:"French", spa:"Spanish", ita:"Italian"};
 const KEY="bokhylle:books", SKEY="bokhylle:settings";
-let books=[], view="toread", sort="added", regFilter="all", regMode="shelf";
+let books=[], view="reading", sort="added", regFilter="all", regMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
 let animateShelf=true; // entrance animation only on first paint and view switches
 
@@ -445,6 +447,7 @@ function matches(b){
 }
 function listFor(v){
   let l = v==="rec" ? books.filter(b=>b.rec) : books.filter(b=>b.shelf===v);
+  l = l.filter(matches);
   if(v==="read"){
     if(regFilter==="done") l = l.filter(isDone);
     if(regFilter==="gave") l = l.filter(b=>b.gaveUp);
@@ -566,7 +569,7 @@ function buildShelf(list, label){
 
 function makeSpine(b,i){
   const w=spineWidth(b.pages), h=spineHeight(b);
-  const btn=el("button","spine"+(b.gaveUp?" gave":"")+(matches(b)?"":" dim"));
+  const btn=el("button","spine"+(b.gaveUp?" gave":""));
   btn.style.width=w+"px"; btn.style.height=h+"px";
   if(w<24) btn.dataset.narrow="1";
   btn.setAttribute("aria-label", `${b.title} by ${b.author}`);
@@ -617,8 +620,7 @@ function buildRegister(list){
     const days=(b.started&&b.finished)?Math.max(1,Math.round((new Date(b.finished)-new Date(b.started))/864e5)):null;
     const when=b.finished||(b.finishedYear?"≈ "+b.finishedYear:"undated");
     const extent=b.gaveUp?`p. ${b.page||0} of ${b.pages||"?"}`:`${b.pages||"—"} pp.${days?` · ${days} d`:""}`;
-    const r=el("button","regrow"+(b.gaveUp?" gave":"")+(matches(b)?"":" dim"));
-    if(!matches(b)) r.style.opacity=".25";
+    const r=el("button","regrow"+(b.gaveUp?" gave":""));
     r.innerHTML=`<div class="idx">${String(i--).padStart(2,"0")}</div>
       <div><div class="ti">${esc(b.title)}${b.rec?" ●":""}</div>
         <div class="au">${esc(b.author)}${b.gaveUp?' <span class="tagx">Gave up</span>':""}</div></div>
