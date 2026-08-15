@@ -269,6 +269,7 @@ const LANGS = {nor:"Norwegian", nob:"Norwegian", nno:"Nynorsk", eng:"English", s
 const KEY="bokhylle:books", SKEY="bokhylle:settings";
 let books=[], view="toread", sort="added", regFilter="all", regMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
+let animateShelf=true; // entrance animation only on first paint and view switches
 
 const $ = s => document.querySelector(s);
 const el = (t,c) => { const e=document.createElement(t); if(c) e.className=c; return e; };
@@ -481,6 +482,7 @@ function render(){
     host.appendChild(st);
   }
   moveRail();
+  animateShelf=false;
 }
 
 function buildEmpty(){
@@ -577,8 +579,9 @@ function makeSpine(b,i){
   }
   btn.appendChild(body);
   btn.onclick=()=>openBook(b,body);
-  btn.animate([{transform:"translateY(26px) scaleY(.9)",opacity:0},{transform:"none",opacity:1}],
-    {duration:480, delay:Math.min(i,24)*30, easing:"cubic-bezier(.16,1,.3,1)", fill:"backwards"});
+  if(animateShelf)
+    btn.animate([{transform:"translateY(26px) scaleY(.9)",opacity:0},{transform:"none",opacity:1}],
+      {duration:480, delay:Math.min(i,24)*30, easing:"cubic-bezier(.16,1,.3,1)", fill:"backwards"});
   return btn;
 }
 
@@ -651,6 +654,7 @@ $("#tabs").onclick=e=>{
   const b=e.target.closest("[data-view]"); if(!b) return;
   view=b.dataset.view;
   document.querySelectorAll("#tabs [role=tab]").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.view===view)));
+  animateShelf=true;
   render();
 };
 $("#seg").onclick=e=>{
@@ -660,10 +664,18 @@ $("#seg").onclick=e=>{
     if(k==="gave"){ regFilter = regFilter==="gave" ? "all" : "gave"; }
     else { regMode=k; regFilter="all"; }
   } else sort=k;
+  animateShelf=true;
   render();
 };
 $("#filter").oninput=e=>{ filterText=e.target.value.trim(); render(); };
-let rt; addEventListener("resize",()=>{clearTimeout(rt); rt=setTimeout(render,160);});
+/* Re-render on resize only when the width actually changes — on mobile the
+   URL bar showing/hiding fires resize with a height change on every scroll. */
+let rt, lastW=innerWidth;
+addEventListener("resize",()=>{
+  if(innerWidth===lastW) return;
+  lastW=innerWidth;
+  clearTimeout(rt); rt=setTimeout(render,160);
+});
 
 /* ═══════════ panel ═══════════ */
 function openPanel(title,node){
@@ -1150,9 +1162,11 @@ function csvToBooks(text){
   });
 }
 
-/* After an import, look up covers and catalog refs for books that lack them. */
+/* After an import, look up covers and catalog refs for books that lack them.
+   Repaints are batched so the shelf doesn't redraw once per book. */
 async function enrichCovers(){
   const missing=books.filter(b=>!b.coverUrl&&!b.ref).slice(0,60);
+  let dirty=0;
   for(const b of missing){
     try{
       const hits=await SOURCES.ol.search(b.isbn||`${b.title} ${b.author}`);
@@ -1163,9 +1177,10 @@ async function enrichCovers(){
       if(!b.year) b.year=hit.year;
       b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig;
       const c=await extractColor(b.coverUrl); if(c) b.color=c;
-      render(); save();
+      if(++dirty%8===0){ render(); save(); }
     }catch(e){}
   }
+  if(dirty){ render(); save(); }
 }
 
 $("#importfile").onchange=async e=>{
