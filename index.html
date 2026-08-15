@@ -143,8 +143,6 @@ nav button[aria-selected="true"] .n{opacity:1}
 .st.ok{color:#2f6b3a}.st.no{color:var(--signal)}.st.wait{color:#a3a39b}
 @media(max-width:560px){
   .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:2px}
-  /* iOS zooms into focused inputs with font-size under 16px */
-  .filter input,.datefix input{font-size:16px}
 }
 
 .flyer{position:fixed;z-index:60;pointer-events:none;transform-origin:left center;backface-visibility:hidden;
@@ -163,7 +161,8 @@ nav button[aria-selected="true"] .n{opacity:1}
 
 .detail{display:grid;grid-template-columns:1fr;gap:20px;padding-top:20px}
 @media(min-width:720px){.detail{grid-template-columns:260px 1fr;gap:34px}}
-.coverslot{width:100%;max-width:200px;aspect-ratio:2/3;background-size:cover;background-position:center}
+.coverslot{width:100%;max-width:200px;aspect-ratio:2/3;
+  background-size:contain;background-repeat:no-repeat;background-position:center}
 .detail h2{font-size:clamp(21px,5.6vw,33px);font-weight:800;font-variation-settings:"wdth" 112;
   line-height:1.02;letter-spacing:-.035em;text-transform:uppercase}
 .orig{font-size:11px;color:#a3a39b;margin-top:6px;font-style:italic}
@@ -190,6 +189,7 @@ nav button[aria-selected="true"] .n{opacity:1}
   display:flex;flex-direction:column;gap:4px}
 .datefix input{font-family:"DM Mono",monospace;font-size:11px;border:1px solid var(--rule);background:none;
   padding:5px 7px;color:var(--ink)}
+.datefix input[type=number]{width:86px}
 
 .searchin{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--ink);padding:16px 0 10px;margin-top:14px}
 .searchin input{flex:1;border:0;background:none;font-family:inherit;font-size:clamp(19px,5vw,26px);font-weight:800;
@@ -202,7 +202,8 @@ nav button[aria-selected="true"] .n{opacity:1}
 .res{display:flex;gap:13px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--rule);width:100%;
   background:none;border-left:0;border-right:0;border-top:0;text-align:left;font-family:inherit;cursor:pointer}
 .res:hover{background:rgba(17,17,16,.035)}
-.res .th{flex:0 0 34px;height:51px;background:var(--grid);background-size:cover;background-position:center}
+.res .th{flex:0 0 34px;height:51px;background:var(--grid);
+  background-size:contain;background-repeat:no-repeat;background-position:center}
 .res .ti{font-size:13.5px;font-weight:700;line-height:1.2}
 .res .au{font-size:11px;color:#6a6a63;margin-top:3px}
 .res .add{margin-left:auto;font-size:16px;color:#6a6a63;padding-left:8px}
@@ -215,6 +216,23 @@ nav button[aria-selected="true"] .n{opacity:1}
 .toast button{appearance:none;background:none;border:0;color:var(--signal);font-family:inherit;font-size:10px;
   font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* iOS zoom guard — keep last in the sheet.
+   Mobile Safari zooms the whole page whenever it focuses a control with a
+   font-size under 16px, and it has ignored maximum-scale since iOS 10, so
+   16px type is the only cure. The component rules above carry the same
+   specificity, so these have to come after them to win. pointer:coarse
+   catches every device with an on-screen keyboard, not just narrow ones. */
+@media (pointer:coarse){
+  input,select,textarea{font-size:16px}
+  .filter input{font-size:16px;letter-spacing:.04em}
+  /* 16px type makes three fields too wide for one phone row, so drop the flex
+     row for a two-column grid: the dates pair up, the year sits under them */
+  .datefix{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+  .datefix label{min-width:0}
+  .datefix input{font-size:16px;padding:7px 6px;width:100%;min-width:0}
+  .datefix input[type=number]{width:100%}
+}
 </style>
 </head>
 <body>
@@ -722,6 +740,16 @@ function unfold(src,b,done){
 }
 
 /* ═══════════ book detail ═══════════ */
+/* Covers arrive in every shape — square reprints, tall paperbacks. Letting the
+   slot take the file's own ratio shows the whole jacket instead of trimming
+   the title off it. Falls back to the 2/3 in the stylesheet if the load fails. */
+function fitRatio(node,url){
+  const im=new Image();
+  im.onload=()=>{ if(im.naturalWidth && im.naturalHeight)
+    node.style.aspectRatio=`${im.naturalWidth}/${im.naturalHeight}`; };
+  im.src=url;
+}
+
 async function openBook(b,src){
   unfold(src,b,()=>openPanel(b.gaveUp?"Gave up":VIEWS[b.shelf],buildDetail(b)));
   if(!b.blurb && b.ref && b.src && SOURCES[b.src].blurb){
@@ -738,8 +766,9 @@ function refresh(b){ save(); render(); openPanel(b.gaveUp?"Gave up":VIEWS[b.shel
 function buildDetail(b){
   const wrap=el("div","detail");
   const left=el("div"), cov=el("div","coverslot");
-  cov.style.background=b.color;
-  if(b.coverBig||b.coverUrl) cov.style.backgroundImage=`url(${b.coverBig||b.coverUrl})`;
+  cov.style.backgroundColor=b.color;
+  const covUrl=b.coverBig||b.coverUrl;
+  if(covUrl){ cov.style.backgroundImage=`url(${covUrl})`; fitRatio(cov,covUrl); }
   left.appendChild(cov);
 
   const right=el("div");
@@ -768,7 +797,7 @@ function buildDetail(b){
   });
   const yl=el("label"); yl.textContent="Or just the year";
   const yi=el("input"); yi.type="number"; yi.min=1400; yi.max=2100; yi.placeholder="YYYY";
-  yi.style.width="86px"; yi.value=b.finishedYear||"";
+  yi.value=b.finishedYear||"";
   yi.onchange=()=>{ b.finishedYear=yi.value?String(yi.value):null; if(b.finishedYear) b.finished=null; refresh(b); };
   yl.appendChild(yi); df.appendChild(yl);
   right.appendChild(df);
