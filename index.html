@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bookshelf</title>
+<meta name="description" content="A reading list without frills.">
+<meta name="theme-color" content="#EFEFEA">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bookshelf">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -13,7 +22,9 @@
 body{background:var(--paper);color:var(--ink);font-family:"Archivo","Helvetica Neue",Helvetica,Arial,sans-serif;
   font-size:14px;line-height:1.35;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 .mono{font-family:"DM Mono","SFMono-Regular",Menlo,monospace;font-size:11px;letter-spacing:.02em}
-.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 var(--gut) 40px}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;
+  padding:env(safe-area-inset-top) calc(var(--gut) + env(safe-area-inset-right))
+          calc(40px + env(safe-area-inset-bottom)) calc(var(--gut) + env(safe-area-inset-left))}
 .gridlines{position:absolute;left:var(--gut);right:var(--gut);top:0;bottom:0;pointer-events:none;
   z-index:0;display:grid;grid-template-columns:repeat(6,1fr)}
 .gridlines i{border-left:1px solid var(--grid)}
@@ -141,7 +152,7 @@ nav button[aria-selected="true"] .n{opacity:1}
 .panel{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--paper);border-top:1px solid var(--ink);
   transform:translateY(101%);transition:transform .46s cubic-bezier(.16,1,.3,1);max-height:92vh;overflow-y:auto}
 .panel.on{transform:translateY(0)}
-.panelin{max-width:1180px;margin:0 auto;padding:0 var(--gut) 26px}
+.panelin{max-width:1180px;margin:0 auto;padding:0 var(--gut) calc(26px + env(safe-area-inset-bottom))}
 .phead{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--rule);
   position:sticky;top:0;background:var(--paper);z-index:2}
 .phead span{font-size:9px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#6a6a63}
@@ -235,7 +246,7 @@ nav button[aria-selected="true"] .n{opacity:1}
     <button id="nettest">Network test</button>
     <button id="export">Export JSON</button>
     <button id="import">Import CSV / JSON</button>
-    <button id="wipe">Reset demo</button>
+    <button id="wipe">Empty the shelf</button>
     <span id="storenote" class="storenote"></span>
     <input type="file" id="importfile" accept="application/json,.json,text/csv,.csv" hidden>
   </div>
@@ -255,7 +266,7 @@ nav button[aria-selected="true"] .n{opacity:1}
 const VIEWS = {toread:"To read", reading:"Reading", rec:"Recommended", read:"Read"};
 const LANGS = {nor:"Norwegian", nob:"Norwegian", nno:"Nynorsk", eng:"English", swe:"Swedish", dan:"Danish",
                ger:"German", fre:"French", spa:"Spanish", ita:"Italian"};
-const KEY="bokhylle:v5", SKEY="bokhylle:settings";
+const KEY="bokhylle:books", SKEY="bokhylle:settings";
 let books=[], view="toread", sort="added", regFilter="all", regMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
 
@@ -373,16 +384,47 @@ const SOURCES = {
 };
 
 /* ═══════════ storage ═══════════
-   window.storage only exists inside Claude. Outside we fall
-   back to memory — then JSON export/import is the lifeline.
-   In a real repo this gets replaced with IndexedDB.           */
+   IndexedDB on our own host, window.storage inside Claude,
+   memory as the last resort. Same API either way.        */
 const MEM={};
-const HAS_STORE = typeof window!=="undefined" && !!window.storage;
-const STORE = HAS_STORE ? window.storage : {
+const HAS_CLAUDE = typeof window!=="undefined" && !!window.storage;
+
+const IDB = (()=>{
+  let dbp=null;
+  const open=()=>dbp||(dbp=new Promise((res,rej)=>{
+    const r=indexedDB.open("bokhylle",1);
+    r.onupgradeneeded=()=>{ const db=r.result;
+      if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  }));
+  const tx=async(mode,fn)=>{
+    const db=await open();
+    return new Promise((res,rej)=>{
+      const t=db.transaction("kv",mode), st=t.objectStore("kv");
+      const rq=fn(st);
+      rq.onsuccess=()=>res(rq.result);
+      rq.onerror=()=>rej(rq.error);
+    });
+  };
+  return {
+    available: typeof indexedDB!=="undefined",
+    get: async k => { const v=await tx("readonly",st=>st.get(k)); return v==null?null:{key:k,value:v}; },
+    set: async (k,v) => { await tx("readwrite",st=>st.put(v,k)); return {key:k,value:v}; }
+  };
+})();
+
+const MEMSTORE = {
   get: async k => (k in MEM ? {key:k, value:MEM[k]} : null),
   set: async (k,v) => { MEM[k]=v; return {key:k, value:v}; }
 };
-async function save(){ try{ await STORE.set(KEY, JSON.stringify(books)); }catch(e){} }
+const STORE = HAS_CLAUDE ? window.storage : (IDB.available ? IDB : MEMSTORE);
+const STORE_KIND = HAS_CLAUDE ? "claude" : (IDB.available ? "idb" : "mem");
+
+async function save(){
+  try{ await STORE.set(KEY, JSON.stringify(books)); }
+  catch(e){ console.warn("saving failed", e); toast("Saving failed — export JSON"); }
+}
 async function saveSettings(){ try{ await STORE.set(SKEY, JSON.stringify({prefLang,source})); }catch(e){} }
 async function load(){
   try{ const s=await STORE.get(SKEY); if(s&&s.value){ const o=JSON.parse(s.value);
@@ -393,51 +435,6 @@ async function load(){
 const finYear = b => (b.finished||"").slice(0,4) || b.finishedYear || null;
 const finKey  = b => b.finished || (b.finishedYear ? b.finishedYear+"-00-00" : "0000-00-00");
 const isDone  = b => b.shelf==="read" && !b.gaveUp;
-
-/* ═══════════ seed ═══════════ */
-const SEED = [
-  {title:"Grid Systems in Graphic Design", author:"Josef Müller-Brockmann", shelf:"read", rec:1, pages:176, ago:410},
-  {title:"The Shape of Time", author:"George Kubler", shelf:"read", rec:1, pages:136, ago:350},
-  {title:"Solaris", author:"Stanisław Lem", shelf:"read", rec:1, pages:204, ago:290},
-  {title:"Invisible Cities", author:"Italo Calvino", shelf:"read", pages:165, ago:210},
-  {title:"The Rings of Saturn", author:"W.G. Sebald", shelf:"read", rec:1, pages:296, ago:150},
-  {title:"Infinite Jest", author:"David Foster Wallace", shelf:"read", gaveUp:1, pages:1079, page:246, ago:120},
-  {title:"A Void", author:"Georges Perec", shelf:"read", pages:285, ago:74},
-  {title:"The Employees", author:"Olga Ravn", shelf:"read", rec:1, pages:136, ago:41},
-  {title:"The Name of the Rose", author:"Umberto Eco", shelf:"read", rec:1, pages:536, onlyYear:"2011"},
-  {title:"The Left Hand of Darkness", author:"Ursula K. Le Guin", shelf:"reading", pages:304, page:118, ago:19},
-  {title:"Hunger", author:"Knut Hamsun", shelf:"reading", pages:240, page:52, ago:9},
-  {title:"The Society of the Spectacle", author:"Guy Debord", shelf:"toread", pages:154, ago:30},
-  {title:"Pattern Recognition", author:"William Gibson", shelf:"toread", pages:356, ago:22},
-  {title:"The Order of Things", author:"Michel Foucault", shelf:"toread", pages:387, ago:12},
-  {title:"Autumn", author:"Ali Smith", shelf:"toread", pages:264, ago:5}
-];
-const daysAgo = n => new Date(Date.now()-n*864e5).toISOString().slice(0,10);
-
-async function seed(){
-  books = SEED.map(s => ({
-    id:uid(), title:s.title, origTitle:null, author:s.author, pages:s.pages, page:s.page||0,
-    shelf:s.shelf, rec:!!s.rec, gaveUp:!!s.gaveUp, isbn:null, year:null, lang:null, publisher:null,
-    coverUrl:null, coverBig:null, ref:null, src:null, blurb:null, color:fallbackColor(s.title),
-    addedAt: s.onlyYear ? s.onlyYear+"-06-01" : daysAgo((s.ago||0)+14),
-    started: (s.shelf!=="toread" && !s.onlyYear) ? daysAgo((s.ago||0)+10) : null,
-    finished: (s.shelf==="read" && !s.onlyYear) ? daysAgo(s.ago) : null,
-    finishedYear: s.onlyYear||null
-  }));
-  render();
-  for(const b of books){
-    try{
-      const hits = await SOURCES.ol.search(`${b.title} ${b.author}`);
-      const hit = hits.find(h=>h.coverUrl) || hits[0];
-      if(!hit) continue;
-      b.ref=hit.ref; b.src="ol"; b.isbn=hit.isbn; b.year=hit.year;
-      b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig;
-      const c = await extractColor(b.coverUrl); if(c) b.color=c;
-      render();
-    }catch(e){}
-  }
-  save();
-}
 
 /* ═══════════ selection ═══════════ */
 function matches(b){
@@ -474,11 +471,7 @@ function render(){
   const list = listFor(view);
 
   if(!list.length){
-    const e=el("div","empty");
-    e.innerHTML = view==="read"
-      ? `<b>Nothing logged yet</b><p>Books end up here when you mark them as read or given up.</p>`
-      : `<b>Empty shelf</b><p>Scan the barcode on a book in front of you, or search by title.</p>`;
-    host.appendChild(e);
+    host.appendChild(buildEmpty());
   } else if(view==="read"){
     host.appendChild(buildStats());
     host.appendChild(regMode==="shelf" ? buildYearShelves(list) : buildRegister(list));
@@ -488,6 +481,36 @@ function render(){
     host.appendChild(st);
   }
   moveRail();
+}
+
+function buildEmpty(){
+  const first = books.length===0;
+  const e=el("div","empty");
+  if(first){
+    e.classList.add("first");
+    e.innerHTML = `<b>The shelf is empty</b>
+      <p>If you have the book in front of you, scan the barcode on the back.
+      Otherwise search by title — pick the edition in the language you read it in.</p>`;
+    const row=el("div","acts"); row.style.marginTop="18px";
+    const s1=el("button","act sig"); s1.textContent="Scan barcode";
+    s1.onclick=()=>$("#openScan").click();
+    const s2=el("button","act"); s2.textContent="Search by title";
+    s2.onclick=()=>$("#openSearch").click();
+    const s3=el("button","act quiet"); s3.textContent="Import CSV / JSON";
+    s3.onclick=()=>$("#import").click();
+    row.append(s1,s2,s3); e.appendChild(row);
+  } else if(filterText){
+    e.innerHTML = `<b>No matches</b><p>No books on this shelf match “${esc(filterText)}”.</p>`;
+  } else {
+    e.innerHTML = view==="read"
+      ? `<b>Nothing logged yet</b><p>Books end up here when you mark them as read or given up.</p>`
+      : view==="rec"
+      ? `<b>No recommendations</b><p>Press “Recommend” on a book you want to remember to tip others about.</p>`
+      : view==="reading"
+      ? `<b>Not reading anything right now</b><p>Open a book from To read and press “Start reading”.</p>`
+      : `<b>Empty shelf</b><p>Scan the barcode on a book in front of you, or search by title.</p>`;
+  }
+  return e;
 }
 
 function buildBar(){
@@ -1175,17 +1198,21 @@ $("#importfile").onchange=async e=>{
   e.target.value="";
 };
 $("#wipe").onclick=async()=>{
+  if(!books.length){ toast("The shelf is already empty"); return; }
   const backup=books.slice();
-  books=[]; await save(); await seed();
-  toast("Reset", ()=>{ books=backup; save(); render(); });
+  books=[]; await save(); render();
+  toast(`${backup.length} books cleared`, ()=>{ books=backup; save(); render(); });
 };
 
 /* ═══════════ start ═══════════ */
 (async()=>{
-  if(!HAS_STORE) $("#storenote").textContent="Storage off · export before you close";
-  const had=await load();
-  if(had&&books.length) render(); else await seed();
+  if(STORE_KIND==="mem") $("#storenote").textContent="Storage off · export before you close";
+  await load();
+  render();
   moveRail();
+  if("serviceWorker" in navigator){
+    try{ await navigator.serviceWorker.register("./sw.js"); }catch(e){}
+  }
 })();
 </script>
 </body>
