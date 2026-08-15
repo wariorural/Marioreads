@@ -37,6 +37,12 @@
   -webkit-appearance:none;appearance:none;border-radius:0}
 .btn,.act{padding:0 var(--ctl-pad);display:inline-flex;align-items:center;
   justify-content:center;white-space:nowrap}
+/* A button that never states a colour falls through to the UA's, and that is
+   not the same everywhere: Chromium gives pure black, iOS Safari gives the
+   system blue. The register rows are plain buttons, so they read blue on the
+   phone and black on the desktop. Inherit instead — every component that
+   wants its own colour already says so, and outranks this. */
+button{color:inherit}
 /* background-color, not the shorthand — the shorthand would reset the image */
 body{background-color:var(--paper);
   background-image:radial-gradient(circle at 1px 1px,var(--dot) .5px,transparent .9px);
