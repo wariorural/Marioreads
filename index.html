@@ -234,10 +234,10 @@ nav button[aria-selected="true"] .n{opacity:1}
   <div class="foot">
     <button id="nettest">Network test</button>
     <button id="export">Export JSON</button>
-    <button id="import">Import JSON</button>
+    <button id="import">Import CSV / JSON</button>
     <button id="wipe">Reset demo</button>
     <span id="storenote" class="storenote"></span>
-    <input type="file" id="importfile" accept="application/json,.json" hidden>
+    <input type="file" id="importfile" accept="application/json,.json,text/csv,.csv" hidden>
   </div>
 </div>
 
@@ -1033,10 +1033,129 @@ $("#export").onclick=()=>{
   toast("Exported");
 };
 $("#import").onclick=()=>$("#importfile").click();
+
+/* Tiny CSV parser: handles quoted cells, escaped quotes and newlines inside quotes. */
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQ){
+      if(ch==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else inQ=false; }
+      else cell+=ch;
+    } else if(ch==='"') inQ=true;
+    else if(ch===','){ row.push(cell); cell=""; }
+    else if(ch==='\n'||ch==='\r'){
+      if(ch==='\r'&&text[i+1]==='\n') i++;
+      row.push(cell); cell="";
+      if(row.length>1||row[0].trim()!=="") rows.push(row);
+      row=[];
+    } else cell+=ch;
+  }
+  if(cell!==""||row.length){ row.push(cell); if(row.length>1||row[0].trim()!=="") rows.push(row); }
+  return rows;
+}
+
+/* Map a reading-list CSV export onto the app's book shape. Understands the
+   Reading List app (iOS), Goodreads and StoryGraph, and falls back to any
+   CSV with a title column. Returns null if no title column is found. */
+function csvToBooks(text){
+  const rows=parseCSV(text);
+  if(rows.length<2) return null;
+  const head=rows[0].map(h=>h.trim().toLowerCase());
+  const col=(...names)=>{ for(const n of names){ const i=head.indexOf(n); if(i>-1) return i; } return -1; };
+  const iTitle=col("title","tittel");
+  if(iTitle<0) return null;
+  const iSubtitle=col("subtitle"),
+        iAuthor=col("author","authors","forfatter"),
+        iIsbn13=col("isbn13","isbn-13","isbn/uid"), iIsbn=col("isbn"),
+        iPages=col("number of pages","page count","pages","sider"),
+        iPage=col("current page"),
+        iShelf=col("exclusive shelf","read status","shelf","status","hylle"),
+        iShelves=col("bookshelves","lists","tags"),
+        iStarted=col("started reading","date started"),
+        iFinished=col("finished reading"),
+        iDnf=col("did not finish"),
+        iDateRead=col("date read","last date read","dates read"),
+        iDateAdded=col("date added"),
+        iYear=col("original publication year","year published"),
+        iPubDate=col("publication date"),
+        iPublisher=col("publisher"),
+        iLang=col("language code","language"),
+        iDesc=col("description");
+  const cleanIsbn=v=>{ const d=String(v||"").replace(/[^0-9Xx]/g,""); return d.length>=10?d:null; };
+  const cleanDate=v=>{ const m=String(v||"").match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+    return m?`${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`:null; };
+  const yearOf=v=>(String(v||"").match(/\d{4}/)||[null])[0];
+  const unentity=v=>String(v||"").replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+    .replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&");
+  const flipName=v=>{ // "Lem, Stanisław" -> "Stanisław Lem"; first author only
+    const first=String(v||"").split(";")[0].trim();
+    const m=first.match(/^([^,]+),\s*(.+)$/);
+    return m?`${m[2]} ${m[1]}`.trim():first;
+  };
+  const LANGMAP={en:"eng",no:"nor",nb:"nob",nn:"nno",sv:"swe",da:"dan",de:"ger",fr:"fre",es:"spa",it:"ita"};
+  return rows.slice(1).filter(r=>(r[iTitle]||"").trim()).map(r=>{
+    const get=i=>i>-1?(r[i]||"").trim():"";
+    const sv=get(iShelf).toLowerCase(), extra=get(iShelves).toLowerCase();
+    const started=cleanDate(get(iStarted)), finishedDate=cleanDate(get(iFinished))||null;
+    const listYear=iShelves>-1?yearOf((get(iShelves).match(/(?:^|,)\s*(\d{4})\s*(?:\(|,|$)/)||[])[1]):null;
+    let shelf="toread", gaveUp=false, finished=null, finishedYear=null;
+    if(/abandon|dnf|did-not-finish|gave up|gitt opp/.test(sv+" "+extra)||get(iDnf)){
+      shelf="read"; gaveUp=true; finished=finishedDate||cleanDate(get(iDnf))||cleanDate(get(iDateRead));
+    } else if(finishedDate){ shelf="read"; finished=finishedDate; }
+    else if(/currently|leser/.test(sv)||(started&&!finishedDate)) shelf="reading";
+    else if(/to-read|to read|want|skal/.test(sv)) shelf="toread";
+    else if(/read|finished|lest/.test(sv)){ shelf="read"; finished=cleanDate(get(iDateRead)); }
+    else if(listYear){ shelf="read"; finishedYear=listYear; }
+    if(shelf==="read"&&!finished&&!finishedYear)
+      finishedYear=yearOf(get(iDateRead))||listYear;
+    const subtitle=get(iSubtitle);
+    return {
+      title:get(iTitle)+(subtitle?": "+subtitle:""),
+      author:flipName(get(iAuthor))||"Unknown",
+      isbn:cleanIsbn(get(iIsbn13))||cleanIsbn(get(iIsbn)),
+      pages:parseInt(get(iPages),10)||260,
+      page:parseInt(get(iPage),10)||0,
+      year:yearOf(get(iYear))||yearOf(get(iPubDate)),
+      publisher:get(iPublisher)||null,
+      lang:LANGMAP[get(iLang).toLowerCase()]||get(iLang).toLowerCase()||null,
+      blurb:iDesc>-1&&get(iDesc)?unentity(get(iDesc)).slice(0,620):null,
+      shelf, gaveUp, finished, finishedYear,
+      started:started||(shelf==="reading"?today():null),
+      addedAt:cleanDate(get(iDateAdded))||started||finished||(finishedYear?finishedYear+"-06-01":null)||today()
+    };
+  });
+}
+
+/* After an import, look up covers and catalog refs for books that lack them. */
+async function enrichCovers(){
+  const missing=books.filter(b=>!b.coverUrl&&!b.ref).slice(0,60);
+  for(const b of missing){
+    try{
+      const hits=await SOURCES.ol.search(b.isbn||`${b.title} ${b.author}`);
+      const hit=hits.find(h=>h.coverUrl)||hits[0];
+      if(!hit) continue;
+      b.ref=hit.ref; b.src="ol";
+      if(!b.isbn) b.isbn=hit.isbn;
+      if(!b.year) b.year=hit.year;
+      b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig;
+      const c=await extractColor(b.coverUrl); if(c) b.color=c;
+      render(); save();
+    }catch(e){}
+  }
+}
+
 $("#importfile").onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{
-    const data=JSON.parse(await f.text());
+    const text=(await f.text()).replace(/^\uFEFF/,"");
+    let data;
+    if(/\.csv$/i.test(f.name)||!/^\s*[\[{]/.test(text)){
+      data=csvToBooks(text);
+      if(!data) throw new Error("no title column");
+    } else {
+      data=JSON.parse(text);
+    }
     if(!Array.isArray(data)) throw new Error("not a list");
     const backup=books.slice();
     const seen=new Set(books.map(b=>(b.isbn||b.title)+"|"+b.author));
@@ -1051,6 +1170,7 @@ $("#importfile").onchange=async e=>{
     });
     await save(); render();
     toast(`${added} books imported`, ()=>{ books=backup; save(); render(); });
+    if(added) enrichCovers();
   }catch(err){ toast("Invalid file"); }
   e.target.value="";
 };
