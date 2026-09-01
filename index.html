@@ -33,9 +33,9 @@
    is what stops iOS imposing its own intrinsic height and rounded corners;
    inline-flex with line-height:1 is what makes a <button> and an <input>
    land on the same metrics. Type sizes stay per-component. */
-.btn,.act,.datefix input,.qadd input,.manualform input{height:var(--ctl);line-height:1;
+.btn,.act,.tog,.datefix input,.qadd input,.manualform input{height:var(--ctl);line-height:1;
   -webkit-appearance:none;appearance:none;border-radius:0}
-.btn,.act{padding:0 var(--ctl-pad);display:inline-flex;align-items:center;
+.btn,.act,.tog{padding:0 var(--ctl-pad);display:inline-flex;align-items:center;
   justify-content:center;white-space:nowrap}
 /* A button that never states a colour falls through to the UA's, and that is
    not the same everywhere: Chromium gives pure black, iOS Safari gives the
@@ -100,6 +100,13 @@ nav button[aria-selected="true"] .n{opacity:1}
 .seg button::before{content:"";position:absolute;left:-6px;right:-6px;top:50%;
   height:var(--ctl);transform:translateY(-50%)}
 .seg button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+/* A label and the segment it names wrap as one piece. Loose in .bar they wrap
+   independently, which strands "View" at the end of the order row with its own
+   buttons on the line below. */
+.segbox{display:flex;align-items:center;gap:14px}
+.segbox[hidden]{display:none}
+/* One control on its own line, above the books, on the shelf's right edge */
+.pickrow{display:flex;justify-content:flex-end;padding-top:14px}
 .filter{margin-left:auto;display:flex;align-items:center;gap:7px;min-width:120px;flex:1;max-width:230px}
 .filter input{flex:1;border:0;border-bottom:1px solid var(--rule);background:none;font-family:inherit;
   font-size:11px;letter-spacing:.06em;padding:4px 0;color:var(--ink);text-transform:uppercase;font-weight:600}
@@ -131,6 +138,9 @@ nav button[aria-selected="true"] .n{opacity:1}
 .spine .prog{position:absolute;left:0;bottom:0;height:2px;background:var(--signal)}
 .spine .star{position:absolute;top:4px;left:50%;transform:translateX(-50%);width:3px;height:3px;
   background:rgba(255,255,255,.9);border-radius:50%}
+/* Up next takes the accent at the head of the spine — the same band the
+   progress bar uses at the foot, so the two can never be read as each other. */
+.spine .pin{position:absolute;left:0;right:0;top:0;height:3px;background:var(--signal)}
 .spine[data-narrow="1"] .t{display:none}
 .spine.gave .body{filter:saturate(.18)}
 
@@ -147,11 +157,12 @@ nav button[aria-selected="true"] .n{opacity:1}
 .regrow .idx{font-family:"DM Mono",monospace;font-size:10px;color:#a3a39b}
 .regrow .ti{font-size:14px;font-weight:700;line-height:1.15}
 .regrow .au{font-size:11px;color:#6a6a63;margin-top:3px}
-.regrow .dt{font-family:"DM Mono",monospace;font-size:10px;color:#6a6a63;text-align:right;white-space:nowrap}
+.regrow .dt,.res .dt{font-family:"DM Mono",monospace;font-size:10px;color:#6a6a63;text-align:right;white-space:nowrap}
 .regrow.gave .ti{color:#8b8b83;font-weight:500}
 .regrow.gave .idx,.regrow.gave .dt{color:#a3a39b}
 .tagx{display:inline-block;border:1px solid var(--rule);padding:1px 5px;margin-left:6px;font-size:8px;
   font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8b8b83;vertical-align:1px}
+.tagx.now{border-color:var(--signal);color:var(--signal)}
 
 .stats{border-top:1px solid var(--ink);display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px}
 .stat{padding:11px 10px 16px;border-right:1px solid var(--rule)}
@@ -224,6 +235,7 @@ nav button[aria-selected="true"] .n{opacity:1}
 .meta{margin-top:18px;border-top:1px solid var(--rule)}
 .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--rule)}
 .row span:first-child{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#6a6a63;font-weight:600;padding-top:2px}
+.statusline{margin-top:14px;font-size:11px;color:#6a6a63}
 .acts{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px}
 .acts.second{margin-top:9px}
 .act{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;font-size:10px;
@@ -235,6 +247,38 @@ nav button[aria-selected="true"] .n{opacity:1}
 .act.sig:hover{background:var(--signal);color:var(--paper)}
 .act.quiet{border-color:var(--rule);color:#8b8b83;font-weight:600}
 .act.quiet:hover{background:none;border-color:var(--ink);color:var(--ink)}
+/* Deleting is quiet until you reach for it — a permanently loud delete is a
+   delete you stop seeing. Has to sit after .act.quiet:hover: same specificity,
+   so the later rule is the one that wins. */
+.act.danger:hover,.act.danger:focus-visible{background:var(--signal);border-color:var(--signal);color:var(--paper)}
+/* The one button that changes appearance without being pressed: the slider has
+   reached the last page. Filled instead of outlined, so it reads as the next
+   step — and the book still doesn't move until it is pressed. */
+.act.sig.urge{background:var(--signal);color:var(--paper)}
+
+/* A toggle wears the control system's metrics but not the border weight of an
+   action: it isn't a thing you do. The mark is a square that fills when on, so
+   on and off differ in ink and not only in wording — it survives a greyscale
+   screenshot, the way the segmented control's underline does. */
+.tog{gap:8px;border:1px solid var(--rule);background:transparent;color:#8b8b83;font-family:inherit;
+  font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;
+  transition:border-color .16s,color .16s}
+.tog .dot{flex:0 0 8px;width:8px;height:8px;border:1px solid currentColor}
+.tog:hover,.tog:focus-visible{border-color:var(--ink);color:var(--ink)}
+.tog[aria-pressed="true"]{border-color:var(--ink);color:var(--ink)}
+.tog[aria-pressed="true"] .dot{background:var(--ink)}
+
+/* Editing the record and deleting it are not reading actions: below the rule,
+   after everything you actually opened the panel to do. */
+.keep{margin-top:24px;padding-top:14px;border-top:1px solid var(--rule);display:flex;gap:7px;flex-wrap:wrap}
+
+/* The strip the panel raises when the dates and the shelf disagree. Bordered in
+   the accent because it is asking a question, tinted faintly because it is not
+   an error. display:flex outranks the UA's [hidden] rule, so say it again. */
+.confirm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;
+  border:1px solid var(--signal);background:rgba(255,59,0,.05)}
+.confirm[hidden]{display:none}
+.confirm .ctext{flex:1;min-width:150px;font-size:12px;color:#2a2a26}
 .pagerow{display:flex;align-items:center;gap:10px;margin-top:16px}
 .pagerow input[type=range]{flex:1;accent-color:var(--signal)}
 .datefix{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
@@ -302,6 +346,11 @@ nav button[aria-selected="true"] .n{opacity:1}
 .res:hover{background:rgba(17,17,16,.035)}
 .res .th{flex:0 0 34px;width:34px;height:51px;background:var(--grid);
   background-size:contain;background-repeat:no-repeat;background-position:center}
+/* The shelf list is a search hit without the shelf buttons: same row, one extra
+   column, which the register already knows how to set. Its own class rather
+   than .res .info, which the search row also matches. */
+.res .li{min-width:0;flex:1}
+.res .dt{margin-left:auto;padding-left:10px}
 
 /* Search hits carry three shelf buttons, so the row can't be one <button>.
    The title button stretches an invisible layer over the whole row for the
@@ -347,8 +396,11 @@ nav button[aria-selected="true"] .n{opacity:1}
   .datefix label{width:auto;min-width:0}
   .datefix input{font-size:16px;min-width:0}
   /* Any `.class input` rule outranks the bare selector above, so every text
-     control that sets its own size has to be named here or it re-enables zoom. */
-  .notefield,.qadd input,.manualform input{font-size:16px}
+     control that sets its own size has to be named here or it re-enables zoom.
+     The quote page field needs its type in the selector too: .qadd
+     input[type=number] sets 11px and outranks a bare `.qadd input`, so until
+     this matched it, tapping it zoomed the page. */
+  .notefield,.qadd input,.qadd input[type=number],.manualform input{font-size:16px}
 }
 </style>
 </head>
@@ -371,8 +423,8 @@ nav button[aria-selected="true"] .n{opacity:1}
   <div class="railwrap"><div class="rail" id="rail"></div></div>
 
   <div class="bar">
-    <span class="lab" id="barlab">Order</span>
-    <div class="seg" id="seg"></div>
+    <div class="segbox"><span class="lab" id="barlab">Order</span><div class="seg" id="seg"></div></div>
+    <div class="segbox" id="viewbox" hidden><span class="lab">View</span><div class="seg" id="seg2"></div></div>
     <div class="filter"><input id="filter" placeholder="Find on the shelf" aria-label="Filter the shelf"></div>
   </div>
 
@@ -406,7 +458,11 @@ const VIEWS = {reading:"Reading", toread:"To read", rec:"Recommended", read:"Rea
 const LANGS = {nor:"Norwegian", nob:"Norwegian", nno:"Nynorsk", eng:"English", swe:"Swedish", dan:"Danish",
                ger:"German", fre:"French", spa:"Spanish", ita:"Italian"};
 const KEY="bokhylle:books", SKEY="bokhylle:settings";
-let books=[], view="reading", sort="added", regFilter="all", regMode="shelf";
+let books=[], view="reading", sort="added", sortDir=1, regFilter="all", regMode="shelf";
+/* How the three unfinished shelves are drawn. One value for all of them, not one
+   per tab: this is a display preference like regMode, not a property of a shelf,
+   and a per-view map would buy a lookup and a default in exchange for nothing. */
+let listMode="shelf";
 let prefLang="nor", source="ol", filterText="", flyer=null, lastRemoved=null, camStream=null;
 let animateShelf=true; // entrance animation only on first paint and view switches
 let lastQuery="", justAdded=null, lastEntry=""; // for the follow-on link after an add
@@ -566,10 +622,18 @@ async function save(){
   try{ await STORE.set(KEY, JSON.stringify(books)); }
   catch(e){ console.warn("saving failed", e); toast("Saving failed — export JSON"); }
 }
-async function saveSettings(){ try{ await STORE.set(SKEY, JSON.stringify({prefLang,source})); }catch(e){} }
+async function saveSettings(){ try{ await STORE.set(SKEY, JSON.stringify({prefLang,source,listMode,sort,sortDir})); }catch(e){} }
 async function load(){
   try{ const s=await STORE.get(SKEY); if(s&&s.value){ const o=JSON.parse(s.value);
-    prefLang=o.prefLang||prefLang; source=o.source||source; } }catch(e){}
+    prefLang=o.prefLang||prefLang; source=o.source||source;
+    /* Validated, not trusted: a settings blob written before these keys existed
+       has none of them, and a sort key with no comparator would fall through to
+       Array.sort's default string order — wrong, and silent about it. SORTS is
+       declared further down; load() only ever runs from the start-up block at
+       the foot of the file, so it is defined by then. */
+    listMode = o.listMode==="list" ? "list" : "shelf";
+    if(SORTS[o.sort]) sort=o.sort;
+    sortDir = o.sortDir===-1 ? -1 : 1; } }catch(e){}
   try{ const r=await STORE.get(KEY); if(r&&r.value){ books=JSON.parse(r.value); return true; } }catch(e){}
   return false;
 }
@@ -577,12 +641,42 @@ const finYear = b => (b.finished||"").slice(0,4) || b.finishedYear || null;
 const finKey  = b => b.finished || (b.finishedYear ? b.finishedYear+"-00-00" : "0000-00-00");
 const isDone  = b => b.shelf==="read" && !b.gaveUp;
 
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+/* Dates are stored and listed as ISO, because a register wants a column of
+   identical shapes. In a sentence it has to read like speech instead. Parsed by
+   hand rather than through Date: `new Date("2026-09-01")` is UTC midnight, which
+   renders as 31 Aug for anyone west of Greenwich. Returns "" for anything that
+   isn't a date, so callers test the result and never the input. */
+const fmtDay = s => {
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); if(!m) return "";
+  const y = m[1]===String(new Date().getFullYear()) ? "" : " "+m[1];
+  return `${+m[3]} ${MONTHS[+m[2]-1]}${y}`;
+};
+
 /* ═══════════ selection ═══════════ */
 function matches(b){
   if(!filterText) return true;
   const q = filterText.toLowerCase();
   return (b.title+" "+b.author+" "+(b.origTitle||"")).toLowerCase().includes(q);
 }
+/* A shelf sorted by title puts every "The" in one place, which is not an order
+   anyone is looking for. English and Norwegian articles only — that is what this
+   shelf holds. */
+const sortTitle = t => String(t||"").toLowerCase().replace(/^(the|a|an|en|et|ei|den|det|de)\s+/,"");
+/* Ascending only. sortDir flips the result, so each order has one definition
+   rather than two that can drift apart. Missing values sort as empty or zero and
+   land first ascending; with five keys a null-placement rule costs more than the
+   tidiness is worth. */
+const SORTS = {
+  added:  (a,b)=>(a.addedAt||"").localeCompare(b.addedAt||""),
+  author: (a,b)=>(a.author||"").localeCompare(b.author||"","en"),
+  title:  (a,b)=>sortTitle(a.title).localeCompare(sortTitle(b.title),"en"),
+  /* Open Library hands back a number and Google Books a string; + settles it. */
+  year:   (a,b)=>((+a.year)||0)-((+b.year)||0),
+  pages:  (a,b)=>(a.pages||0)-(b.pages||0)
+};
+const SORT_OPTS=[["added","Added"],["author","Author"],["title","Title"],["year","Year"],["pages","Pages"]];
+
 function listFor(v){
   let l = v==="rec" ? books.filter(b=>b.rec) : books.filter(b=>b.shelf===v);
   l = l.filter(matches);
@@ -591,12 +685,14 @@ function listFor(v){
     if(regFilter==="gave") l = l.filter(b=>b.gaveUp);
     return l.slice().sort((a,b)=>finKey(b).localeCompare(finKey(a)));
   }
-  const by = {
-    added:(a,b)=>(a.addedAt||"").localeCompare(b.addedAt||""),
-    author:(a,b)=>(a.author||"").localeCompare(b.author||"","en"),
-    pages:(a,b)=>(a.pages||0)-(b.pages||0)
-  }[sort];
-  return l.slice().sort(by);
+  const by = SORTS[sort] || SORTS.added;   // a stale settings key must not mean "string sort"
+  return l.slice().sort((a,b)=>{
+    /* Up next first in both directions: it is a statement about the shelf, not
+       about the order, so flipping the order must not bury it. The !! is because
+       upNext is absent on every record stored before it existed. */
+    const p = (!!b.upNext) - (!!a.upNext);
+    return p || by(a,b)*sortDir;
+  });
 }
 
 /* ═══════════ rendering ═══════════ */
@@ -618,9 +714,13 @@ function render(){
     host.appendChild(buildStats());
     host.appendChild(regMode==="shelf" ? buildYearShelves(list) : buildRegister(list));
   } else {
-    const st=el("div","stack");
-    buildShelf(list).forEach(n=>st.appendChild(n));
-    host.appendChild(st);
+    if(view==="toread" && list.length>=3) host.appendChild(buildPicker());
+    if(listMode==="list") host.appendChild(buildList(list));
+    else {
+      const st=el("div","stack");
+      buildShelf(list).forEach(n=>st.appendChild(n));
+      host.appendChild(st);
+    }
   }
   moveRail();
   animateShelf=false;
@@ -656,19 +756,36 @@ function buildEmpty(){
   return e;
 }
 
-function buildBar(){
-  const seg=$("#seg");
-  seg.innerHTML="";
-  const opts = view==="read"
-    ? [["shelf","Shelf"],["list","List"],["gave","Gave up"]]
-    : [["added","Chronological"],["author","Author"],["pages","Thickness"]];
-  const cur = view==="read" ? (regFilter==="gave" ? "gave" : regMode) : sort;
-  $("#barlab").textContent = view==="read" ? "Show" : "Order";
+/* Looks like mk() in the search panel and deliberately isn't it: mk binds a
+   handler per button for a segment that lives as long as its panel, while the
+   bar's segments are thrown away and rebuilt on every render — including on
+   every keystroke in the filter field — and are served by one delegated
+   listener on a stable host. Sharing one factory would mean re-binding
+   handlers on every keystroke. */
+function fillSeg(host,opts,cur,dir){
+  host.innerHTML="";
   opts.forEach(([k,t])=>{
-    const b=el("button"); b.textContent=t; b.dataset.k=k;
-    b.setAttribute("aria-pressed", String(k===cur));
-    seg.appendChild(b);
+    const b=el("button"); b.dataset.k=k;
+    const on = k===cur;
+    b.setAttribute("aria-pressed",String(on));
+    /* The arrow rides inside the label rather than in a pseudo-element, so it
+       sits above the underline aria-pressed already draws. */
+    b.textContent = (on&&dir) ? `${t} ${dir<0?"↓":"↑"}` : t;
+    if(on&&dir) b.setAttribute("aria-label",`${t}, ${dir<0?"descending":"ascending"}`);
+    host.appendChild(b);
   });
+}
+function buildBar(){
+  const isRead = view==="read";
+  $("#barlab").textContent = isRead ? "Show" : "Order";
+  fillSeg($("#seg"),
+    isRead ? [["shelf","Shelf"],["list","List"],["gave","Gave up"]] : SORT_OPTS,
+    isRead ? (regFilter==="gave" ? "gave" : regMode) : sort,
+    isRead ? 0 : sortDir);
+  /* The second segment exists only where there are two ways to draw the list.
+     The Read tab already spends its first segment on exactly that choice. */
+  fillSeg($("#seg2"), [["shelf","Shelf"],["list","List"]], listMode, 0);
+  $("#viewbox").hidden = isRead;
 }
 
 function packRows(list){
@@ -716,6 +833,7 @@ function makeSpine(b,i){
   body.appendChild(t);
   if(b.rec && view!=="rec") body.appendChild(el("div","star"));
   if(hasNotes(b)) body.appendChild(el("div","noted"));
+  if(b.upNext && b.shelf==="toread") body.appendChild(el("div","pin"));
   if(b.shelf==="reading" && b.page>0){
     const p=el("div","prog"); p.style.width=Math.min(100,(b.page/(b.pages||1))*100)+"%"; body.appendChild(p);
   }
@@ -770,6 +888,55 @@ function buildRegister(list){
   return box;
 }
 
+/* The unfinished shelves as a catalogue rather than as furniture. A spine tells
+   you thickness and nothing else, and a title under 24px wide isn't drawn at
+   all — but choosing what to read next is done on the cover, the author and the
+   page count. Built on .res, the same row the search results and the editions
+   list already use, so the thumbnail has one definition in the sheet. */
+function buildList(list){
+  const wrap=el("div","stack"), box=el("div","reg");
+  list.forEach(b=>{
+    const r=el("button","res");
+    const th=el("div","th"); th.setAttribute("aria-hidden","true");
+    th.style.backgroundColor=b.color;          // a coverless book keeps its spine colour
+    const u=b.coverUrl||b.coverBig;
+    if(u) th.style.backgroundImage=`url(${u})`;
+    const info=el("div","li");
+    info.innerHTML=`<div class="ti">${esc(b.title)}${b.rec?" ●":""}</div>`+
+      `<div class="au">${esc(b.author)}`+
+      (b.upNext&&b.shelf==="toread"?' <span class="tagx now">Up next</span>':"")+
+      (hasNotes(b)?' <span class="tagx">Notes</span>':"")+`</div>`;
+    const added=fmtDay(b.addedAt);
+    const dt=el("div","dt");
+    dt.innerHTML=`${b.pages?b.pages+" pp.":"—"}<br>${added?"added "+esc(added):""}`;
+    r.append(th,info,dt);
+    r.setAttribute("aria-label",`${b.title} by ${b.author}`);
+    /* The thumb is the flight source: unfold bails above 120px, so a 34px cover
+       opens into the panel the same way a spine does. */
+    r.onclick=()=>openBook(b,th);
+    box.appendChild(r);
+  });
+  wrap.appendChild(box);
+  return wrap;
+}
+
+/* A pile you can't choose from is a pile you don't read. Draws from the list as
+   filtered — a filter is the reader narrowing the question, and answering a
+   wider one would be a trick — and re-reads it at click time, because the shelf
+   can change under an open tab. Pins are ignored: pinning is about order,
+   picking is about chance. */
+function buildPicker(){
+  const row=el("div","pickrow");
+  const btn=el("button","act quiet"); btn.textContent="Pick one for me";
+  btn.onclick=()=>{
+    const pool=listFor("toread");
+    if(!pool.length) return;
+    openBook(pool[Math.floor(Math.random()*pool.length)], null);
+  };
+  row.appendChild(btn);
+  return row;
+}
+
 function buildStats(){
   const yr=new Date().getFullYear();
   const done=books.filter(b=>isDone(b)&&String(finYear(b))===String(yr)).length;
@@ -803,7 +970,18 @@ $("#seg").onclick=e=>{
   if(view==="read"){
     if(k==="gave"){ regFilter = regFilter==="gave" ? "all" : "gave"; }
     else { regMode=k; regFilter="all"; }
-  } else sort=k;
+  } else {
+    /* Pressing the order you are already on flips it. That is the whole reason
+       "newest first" is reachable without spending a second control on it. */
+    if(k===sort) sortDir=-sortDir; else { sort=k; sortDir=1; }
+    saveSettings();
+  }
+  animateShelf=true;
+  render();
+};
+$("#seg2").onclick=e=>{
+  const b=e.target.closest("[data-k]"); if(!b) return;
+  listMode=b.dataset.k; saveSettings();
   animateShelf=true;
   render();
 };
@@ -926,6 +1104,8 @@ function patchDetail(b){
   o.hidden=!showOrig; o.textContent=showOrig?"Original title: "+b.origTitle:"";
   scope.querySelector(`[data-byline="${b.id}"]`).textContent=bylineText(b);
   fillMeta(scope.querySelector(`[data-meta="${b.id}"]`), b);
+  const st=scope.querySelector(`[data-status="${b.id}"]`);
+  if(st) st.textContent=statusText(b);      // a new page count moves the percentage
   const pr=scope.querySelector(`[data-pagerow="${b.id}"]`);
   if(pr){                                 // a new page count rescales the slider
     pr.querySelector("input[type=range]").max=b.pages||300;
@@ -939,6 +1119,89 @@ function fillMeta(node,b){
   node.innerHTML="";
   [["Pages",b.pages||"—"],["ISBN",b.isbn||"—"],["Source",b.src?SOURCES[b.src].label:"—"],["Added",b.addedAt||"—"]]
     .forEach(([k,v])=>{ const r=el("div","row"); r.innerHTML=`<span>${k}</span><span class="mono">${esc(v)}</span>`; node.appendChild(r); });
+}
+
+/* ═══════════ shelf transitions ═══════════
+   Lifted out of the detail panel because finishing a book now has two doors
+   into it — the button and the date prompt — and two copies of a transition is
+   how the two of them start disagreeing. Every one clears upNext: it means
+   "next out of the To read queue", and a book that has left the queue cannot be
+   next in it. The ones that discard a date the reader typed carry an Undo. */
+function startReading(b){
+  const again = b.shelf==="read" && !b.gaveUp;
+  const prev = {shelf:b.shelf, gaveUp:b.gaveUp, started:b.started, finished:b.finished,
+                finishedYear:b.finishedYear, page:b.page, upNext:!!b.upNext};
+  b.shelf="reading"; b.gaveUp=false; b.upNext=false;
+  b.started = again ? today() : (b.started||today());   // a re-read starts now
+  if(again) b.page=0;
+  b.finished=null; b.finishedYear=null;
+  refresh(b);
+  toast(again?"Reading again":"Reading now",
+        again ? ()=>{ Object.assign(b,prev); refresh(b); } : null);
+}
+function finishReading(b){
+  b.shelf="read"; b.gaveUp=false; b.upNext=false;
+  /* Keep a date the reader typed. Stamping today over it is what made the
+     Finished field feel like nothing was reading it — and it is what lets the
+     button and the prompt below produce the same result. Since startReading
+     clears both finish fields, anything here was entered during this reading. */
+  if(!b.finished && !b.finishedYear) b.finished=today();
+  if(b.pages) b.page=b.pages;              // unguarded, this wrote p. null/?
+  refresh(b); toast("Logged in the register");
+}
+function giveUp(b){
+  b.shelf="read"; b.gaveUp=true; b.upNext=false;
+  if(!b.finished && !b.finishedYear) b.finished=today();
+  refresh(b); toast("Logged as given up");
+}
+/* Clears the finish dates rather than carrying them onto a shelf of books you
+   haven't read — otherwise the prompt below would ask, every time you opened
+   it, whether the book you just filed as unread is read. */
+function moveToRead(b){
+  const prev={shelf:b.shelf, gaveUp:b.gaveUp, finished:b.finished,
+              finishedYear:b.finishedYear, upNext:!!b.upNext};
+  b.shelf="toread"; b.gaveUp=false; b.upNext=false; b.finished=null; b.finishedYear=null;
+  refresh(b);
+  toast("Moved to To read", ()=>{ Object.assign(b,prev); refresh(b); });
+}
+
+/* One line that says where the book stands, so the actions under it don't read
+   as a quiz about which state it is in. Shared with patchDetail for the same
+   reason bylineText is: two copies would drift. */
+function statusText(b){
+  const pages=b.pages||0, read=b.page||0;
+  const pg = pages ? `p. ${read}/${pages} (${Math.round(read/pages*100)}%)` : null;
+  const started=fmtDay(b.started), fin=fmtDay(b.finished);
+  if(b.shelf==="reading")
+    return ["Reading", started?`started ${started}`:null, pg].filter(Boolean).join(" · ");
+  if(b.shelf==="toread"){
+    const added=fmtDay(b.addedAt);
+    return ["To read", b.upNext?"up next":null, added?`added ${added}`:null].filter(Boolean).join(" · ");
+  }
+  /* "Stopped", not "finished" — the register already keeps the two apart. */
+  if(b.gaveUp){
+    const when = fin ? `stopped ${fin}` : (b.finishedYear?`stopped in ${b.finishedYear}`:"no date on record");
+    return ["Gave up", when, pages?`at p. ${read} of ${pages}`:null].filter(Boolean).join(" · ");
+  }
+  const when = fin ? `finished ${fin}` : (b.finishedYear?`finished in ${b.finishedYear}`:"no date on record");
+  const days = (b.started&&b.finished)
+    ? Math.max(1,Math.round((new Date(b.finished)-new Date(b.started))/864e5)) : null;
+  return ["Read", when, days?`${days} day${days===1?"":"s"}`:null].filter(Boolean).join(" · ");
+}
+
+/* A toggle, not an action: it states a property of the book rather than doing
+   something to it, so it must not wear the same clothes as Give up. The label
+   stays put and the mark carries the state — a button whose words change is a
+   button you have to read twice. aria-pressed is the hook the segmented
+   control already styles on. */
+function toggleBtn(label,on,fn){
+  const t=el("button","tog");
+  t.setAttribute("aria-pressed",String(!!on));
+  const dot=el("span","dot"); dot.setAttribute("aria-hidden","true");
+  const tl=el("span"); tl.textContent=label;
+  t.append(dot,tl);
+  t.onclick=()=>fn(t);
+  return t;
 }
 
 function buildDetail(b){
@@ -970,13 +1233,40 @@ function buildDetail(b){
   fillMeta(meta,b);
   right.appendChild(meta);
 
+  const statusNode=el("div","statusline mono"); statusNode.dataset.status=b.id;
+  right.appendChild(statusNode);            // filled by syncPanelState below
+
+  /* Everything the panel derives rather than stores. The date fields and the
+     page slider deliberately never rebuild the panel, so anything downstream of
+     them has to be told by hand — this is the surgical stand-in for refresh. */
+  let priBtn=null, finDismissed=false;
+  const syncStatus=()=>{ statusNode.textContent=statusText(b); };
+  function syncFinishPrompt(){
+    const stranded = b.shelf!=="read" && !!(b.finished||b.finishedYear);
+    fp.hidden = !stranded || finDismissed;
+    if(fp.hidden) return;
+    const d=fmtDay(b.finished);
+    fpTxt.textContent = d ? `Finished ${d} — move it to Read?`
+                          : `Finished in ${b.finishedYear} — move it to Read?`;
+  }
+  /* At the last page, logging it is the obvious next step, so the button says
+     so. It only gets louder — moving the book is still the reader's call. */
+  function syncPrimaryUrge(){
+    if(!priBtn) return;
+    priBtn.classList.toggle("urge", b.shelf==="reading" && !!b.pages && (b.page||0)>=b.pages);
+  }
+  const syncPanelState=()=>{ syncStatus(); syncFinishPrompt(); syncPrimaryUrge(); };
+
   const df=el("div","datefix");
   [["Started","started"],["Finished","finished"]].forEach(([lab,key])=>{
     const l=el("label"); l.textContent=lab;
     const i=el("input"); i.type="date"; i.value=b[key]||"";
     /* save+render, not refresh — rebuilding the panel here would throw away
        the field you are still working in and the focus that goes with it. */
-    i.onchange=()=>{ b[key]=i.value||null; if(key==="finished"&&i.value){ b.finishedYear=null; syncYear(); } save(); render(); };
+    i.onchange=()=>{ b[key]=i.value||null;
+      if(key==="finished"){ if(i.value){ b.finishedYear=null; syncYear(); }
+        finDismissed=false; }   // a new date is a new question
+      save(); render(); syncPanelState(); };
     l.appendChild(i); df.appendChild(l);
   });
   const yl=el("label"); yl.textContent="Or just the year";
@@ -988,48 +1278,94 @@ function buildDetail(b){
   const fin=()=>df.querySelectorAll("input[type=date]")[1];
   yi.onchange=()=>{ b.finishedYear=yi.value?String(yi.value):null;
     if(b.finishedYear){ b.finished=null; fin().value=""; }
-    save(); render(); };
+    finDismissed=false;
+    save(); render(); syncPanelState(); };
   yl.appendChild(yi); df.appendChild(yl);
   right.appendChild(df);
+
+  /* The dates say the book is finished and the shelf says it isn't. That is an
+     inconsistency the app noticed, not a decision it gets to make, so it states
+     the fact and offers the move instead of performing it. Always in the DOM
+     and merely hidden, like .orig above, because the field that raises it must
+     not be rebuilt out from under the reader mid-entry. */
+  const fp=el("div","confirm"); fp.dataset.finprompt=b.id; fp.hidden=true;
+  const fpTxt=el("span","ctext");
+  /* Not .sig: the strip already carries the accent in its border and its tint,
+     and the panel is only allowed one orange button — which, while the strip is
+     up, would otherwise be a second copy of this same action. */
+  const fpYes=el("button","act"); fpYes.textContent="Move to Read";
+  fpYes.onclick=()=>finishReading(b);
+  const fpNo=el("button","act quiet"); fpNo.textContent="Not yet";
+  /* Dismissal lives and dies with this panel. It suppresses a real data
+     inconsistency, so a stored "don't ask" would hide it for good on one stray
+     tap; editing the date brings it straight back. */
+  fpNo.onclick=()=>{ finDismissed=true; fp.hidden=true; };
+  fp.append(fpTxt,fpYes,fpNo);
+  right.appendChild(fp);
 
   if(b.shelf==="reading"||b.gaveUp){
     const pr=el("div","pagerow"); pr.dataset.pagerow=b.id;
     const lbl=el("span","mono"); lbl.style.minWidth="78px"; lbl.textContent=`p. ${b.page||0}/${b.pages||"?"}`;
     const range=el("input"); range.type="range"; range.min=0; range.max=b.pages||300; range.value=b.page||0;
-    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`p. ${b.page}/${b.pages||"?"}`; };
+    range.oninput=()=>{ b.page=+range.value; lbl.textContent=`p. ${b.page}/${b.pages||"?"}`;
+      syncPanelState(); };
     range.onchange=()=>{ save(); render(); };
     pr.append(lbl,range); right.appendChild(pr);
   }
 
-  // primary actions
+  /* One orange thing in the panel, and it always answers the same question:
+     what do I do with this book next. Everything else steps back. */
+  const quiet=(box,txt,fn)=>{ const x=el("button","act quiet"); x.textContent=txt; x.onclick=fn; box.appendChild(x); return x; };
   const acts=el("div","acts");
-  const add=(box,cls,txt,fn)=>{ const x=el("button","act "+cls); x.textContent=txt; x.onclick=fn; box.appendChild(x); };
-  if(b.shelf!=="reading")
-    add(acts,"sig", b.gaveUp?"Pick it up again":"Start reading",()=>{
-      b.shelf="reading"; b.gaveUp=false; b.started=b.started||today(); b.finished=null; b.finishedYear=null;
-      refresh(b); toast("Reading now"); });
-  if(b.shelf==="reading"){
-    add(acts,"","Finished reading",()=>{ b.shelf="read"; b.gaveUp=false; b.finished=today(); b.page=b.pages; refresh(b); toast("Logged in the register"); });
-    add(acts,"quiet","Give up",()=>{ b.shelf="read"; b.gaveUp=true; b.finished=today(); refresh(b); toast("Logged as given up"); });
-  }
-  add(acts, b.rec?"on":"", b.rec?"Recommended ●":"Recommend",()=>{ b.rec=!b.rec; refresh(b); });
+  const [priTxt,priFn] =
+      b.shelf==="toread"  ? ["Start reading",   ()=>startReading(b)]
+    : b.shelf==="reading" ? ["Finished reading",()=>finishReading(b)]
+    : b.gaveUp            ? ["Pick it up again",()=>startReading(b)]
+    :                       ["Read it again",   ()=>startReading(b)];
+  priBtn=el("button","act sig"); priBtn.textContent=priTxt; priBtn.onclick=priFn;
+  acts.appendChild(priBtn);
+  /* Adding replaces the panel in place, so without a way back the flow dead
+     ends and entering a backlog means starting over for every single book.
+     Next to the primary, because straight after an add it is the likeliest tap
+     after it. */
+  if(b.id===justAdded && lastEntry==="manual") quiet(acts,"＋ Enter another",()=>manualPanel(""));
+  else if(b.id===justAdded && lastQuery) quiet(acts,"← Back to results",()=>searchPanel(lastQuery));
   right.appendChild(acts);
 
-  // secondary
-  const more=el("div","acts second");
-  /* Adding replaces the panel in place, so without a way back the flow dead
-     ends and entering a backlog means starting over for every single book. */
-  if(b.id===justAdded && lastEntry==="manual") add(more,"quiet","＋ Enter another",()=>manualPanel(""));
-  else if(b.id===justAdded && lastQuery) add(more,"quiet","← Back to results",()=>searchPanel(lastQuery));
-  if(b.shelf!=="toread") add(more,"quiet","→ To read",()=>{ b.shelf="toread"; b.gaveUp=false; refresh(b); });
-  if(b.ref && b.src && SOURCES[b.src].canEditions) add(more,"quiet","Change edition",()=>openEditions(b));
-  add(more,"quiet","Remove",()=>{
+  // the other ways off this shelf
+  const moves=el("div","acts second");
+  if(b.shelf==="reading") quiet(moves,"Give up",()=>giveUp(b));
+  if(b.shelf!=="toread")  quiet(moves,"→ To read",()=>moveToRead(b));
+  if(moves.children.length) right.appendChild(moves);
+
+  // what the book is, rather than what to do with it
+  const togs=el("div","acts second");
+  togs.appendChild(toggleBtn("Recommend", b.rec, t=>{
+    /* No refresh: nothing about the panel's shape depends on either flag, and a
+       rebuild would cost the scroll position and the note you were typing. */
+    b.rec=!b.rec; t.setAttribute("aria-pressed",String(b.rec)); save(); render();
+  }));
+  if(b.shelf==="toread") togs.appendChild(toggleBtn("Up next", !!b.upNext, t=>{
+    b.upNext=!b.upNext; t.setAttribute("aria-pressed",String(b.upNext));
+    save(); render(); syncStatus();
+  }));
+  right.appendChild(togs);
+
+  right.appendChild(buildNotes(b));
+
+  /* Notes and quotes are what you came for; editing the record and deleting it
+     are administration. Below the rule at the very bottom is where the eye
+     stops looking, which is exactly where Remove belongs. */
+  const keep=el("div","keep");
+  if(b.ref && b.src && SOURCES[b.src].canEditions) quiet(keep,"Change edition",()=>openEditions(b));
+  quiet(keep,"Remove",()=>{
     const idx=books.indexOf(b); lastRemoved={b,idx};
     books=books.filter(x=>x.id!==b.id); save(); render(); closePanel();
     toast("Removed", ()=>{ books.splice(lastRemoved.idx,0,lastRemoved.b); save(); render(); });
-  });
-  right.appendChild(more);
-  right.appendChild(buildNotes(b));
+  }).classList.add("danger");
+  right.appendChild(keep);
+
+  syncPanelState();          // also catches a book already stranded in storage
 
   wrap.append(left,right);
   return wrap;
@@ -1321,7 +1657,7 @@ async function addBook(hit, shelf){
     isbn:hit.isbn, lang:hit.lang, publisher:hit.publisher||null,
     coverUrl:hit.coverUrl, coverBig:hit.coverBig||hit.coverUrl, ref:hit.ref, src:hit.source,
     blurb:hit.blurb||null, shelf: target, rec: view==="rec",
-    gaveUp:false, page:0,
+    gaveUp:false, upNext:false, page:0,
     started: target==="reading" ? today() : null,
     finished:null,
     /* Seed the year, not the date: most books are logged long after they were
@@ -1746,7 +2082,8 @@ $("#importfile").onchange=async e=>{
       const k=(b.isbn||b.title)+"|"+b.author;
       if(seen.has(k)) return;
       seen.add(k);
-      books.push(Object.assign({id:uid(), rec:false, gaveUp:false, page:0, addedAt:today(),
+      /* Defaults first, so a re-imported export that carries upNext keeps it. */
+      books.push(Object.assign({id:uid(), rec:false, upNext:false, gaveUp:false, page:0, addedAt:today(),
         note:"", quotes:[], color:fallbackColor(b.title||"?")}, b, {id:uid()}));
       added++;
     });
