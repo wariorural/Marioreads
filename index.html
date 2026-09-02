@@ -26,6 +26,10 @@
   /* One height for every control in the app. Buttons and fields used to set
      their own padding, which is why nothing lined up. Raised on touch below. */
   --ctl:34px;--ctl-pad:13px;--ctl-field:150px;
+  /* The measure of the panel's control column, derived rather than picked: the
+     three date fields side by side. Everything you operate lines up with them
+     instead of running the full width of a desktop panel. */
+  --ctl-col:calc(var(--ctl-field)*3 + 16px);
   /* Paper texture. A 1px dot has none of the continuity the eye integrates
      along a hairline, and at this size antialiasing eats most of it on a 1×
      screen — so the individual dot has to be well darker than the old rules
@@ -241,8 +245,18 @@ nav button[aria-selected="true"] .n{opacity:1}
 .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--rule)}
 .row span:first-child{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#6a6a63;font-weight:600;padding-top:2px}
 .statusline{margin-top:14px;font-size:11px;color:#6a6a63}
+/* The buttons are a column of the panel, not a ragged block hung on its left
+   edge. Every one of them grows to close its line, so the rows end where the
+   meta rules and the section rules already end: a row of one reads as a bar,
+   a row of two splits it down the middle. Capped, because a 10px label
+   stretched across a desktop column is a hit area pretending to be a
+   headline — past --ctl-col the air belongs back in the margin. The note and
+   quote fields take the same measure, so the whole lower panel ends on one
+   edge instead of three, and a note stays a readable line length. */
+.acts,.keep,.notefield,.qlist,.qadd,.pagerow,.datefix{max-width:var(--ctl-col)}
 .acts{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px}
 .acts.second{margin-top:9px}
+.acts>*,.keep>*{flex:1 1 auto}
 .act{border:1px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;font-size:10px;
   font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;
   transition:background .16s,color .16s}
@@ -270,6 +284,11 @@ nav button[aria-selected="true"] .n{opacity:1}
   transition:border-color .16s,color .16s}
 .tog .dot{flex:0 0 8px;width:8px;height:8px;border:1px solid currentColor}
 .tog:hover,.tog:focus-visible{border-color:var(--ink);color:var(--ink)}
+/* Now that the rows close their line, a centred mark would make the toggle the
+   same object as the button beside it — the one thing this control was drawn
+   not to be. Left-aligned, it reads as a box you tick, and the difference
+   survives at a glance instead of only on inspection. */
+.acts>.tog{justify-content:flex-start}
 .tog[aria-pressed="true"]{border-color:var(--ink);color:var(--ink)}
 .tog[aria-pressed="true"] .dot{background:var(--ink)}
 
@@ -312,17 +331,24 @@ nav button[aria-selected="true"] .n{opacity:1}
 .q{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:baseline;
   padding:9px 0;border-bottom:1px solid var(--rule)}
 .q .qp{font-family:"DM Mono",monospace;font-size:10px;color:#a3a39b;white-space:nowrap}
-.q .qt{font-size:13px;line-height:1.5;color:#2a2a26}
+.q .qt{font-size:13px;line-height:1.5;color:#2a2a26;white-space:pre-line}
 .qx{appearance:none;background:none;border:0;font-family:inherit;font-size:11px;color:#a3a39b;
   cursor:pointer;padding:0 2px;line-height:1}
 .qx:hover{color:var(--signal)}
-.qadd{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+/* A quote is prose, and prose typed into a 150px slot between a number and a
+   button cannot be read back before it is filed. The passage takes the whole
+   line and several of them; the page and the button go underneath, where they
+   are the answer to "and now?" rather than two things in the way. */
+.qadd{margin-top:10px}
+.qfield{margin-top:0;min-height:72px}
+.qrow{display:flex;gap:6px;margin-top:6px}
+.qrow .act{flex:1 1 auto}
 .qadd input{border:1px solid var(--rule);background:none;color:var(--ink);font-family:inherit;
   font-size:13px;padding:0 9px}
-.qadd input[type=number]{width:74px;font-family:"DM Mono",monospace;font-size:11px;-moz-appearance:textfield}
+.qadd input[type=number]{flex:0 0 74px;width:74px;font-family:"DM Mono",monospace;font-size:11px;
+  -moz-appearance:textfield}
 .qadd input[type=number]::-webkit-outer-spin-button,
 .qadd input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.qadd input[type=text]{flex:1;min-width:150px}
 /* A book you have written about carries a mark, so the shelf shows which */
 .spine .noted{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);
   width:9px;height:1px;background:rgba(255,255,255,.8)}
@@ -1427,10 +1453,15 @@ function buildNotes(b){
   drawQuotes();
 
   const addrow=el("div","qadd");
+  /* A textarea, not a line: passages run long and wrap, and the field you
+     cannot see the end of is the field you stop trusting. It borrows the note
+     field's clothes — same border, same type — one size down, because notes
+     are the longer form of the two. */
+  const tx=el("textarea","notefield qfield"); tx.placeholder="Passage worth keeping";
+  tx.setAttribute("aria-label","Quote");
+  const row=el("div","qrow");
   const pg=el("input"); pg.type="number"; pg.min=1; pg.max=9999; pg.placeholder="p."; pg.inputMode="numeric";
   pg.setAttribute("aria-label","Page number");
-  const tx=el("input"); tx.type="text"; tx.placeholder="Passage worth keeping";
-  tx.setAttribute("aria-label","Quote");
   const go=el("button","act quiet"); go.textContent="Add quote";
   const commit=()=>{
     const v=tx.value.trim(); if(!v) return;
@@ -1438,8 +1469,11 @@ function buildNotes(b){
     pg.value=""; tx.value=""; save(); render(); drawQuotes(); tx.focus();
   };
   go.onclick=commit;
-  tx.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); commit(); } };
-  addrow.append(pg,tx,go); box.appendChild(addrow);
+  /* Enter files it, as it did when this was one line — losing the fast path
+     would be the price of the bigger field. Shift+Enter is the break, the way
+     every other box you type a paragraph into behaves. */
+  tx.onkeydown=e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); commit(); } };
+  row.append(pg,go); addrow.append(tx,row); box.appendChild(addrow);
   return box;
 }
 
