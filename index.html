@@ -98,7 +98,7 @@ nav button[aria-selected="true"] .n{opacity:1}
 
 .bar{display:flex;align-items:center;gap:14px;padding:10px 0 2px;flex-wrap:wrap}
 .bar .lab{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#8b8b83;font-weight:600}
-.seg{display:flex;gap:13px;align-items:center;min-height:var(--ctl)}
+.seg{display:flex;flex-wrap:wrap;gap:13px;align-items:center;min-height:var(--ctl)}
 .seg button{position:relative;appearance:none;background:none;border:0;font-family:inherit;cursor:pointer;font-size:9px;
   font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#a3a39b;padding:2px 0;
   border-bottom:1px solid transparent}
@@ -197,7 +197,18 @@ nav button[aria-selected="true"] .n{opacity:1}
 .diagrow .st{font-family:"DM Mono",monospace;font-size:10px;white-space:nowrap;text-align:right}
 .st.ok{color:#2f6b3a}.st.no{color:var(--signal)}.st.wait{color:#a3a39b}
 @media(max-width:560px){
-  .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:2px}
+  .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:6px}
+  /* At the end of the bar this is an 11px field and reads as one. Full width,
+     and at the 16px iOS insists on, uppercase letter-spaced type over a
+     hairline stops being a field and becomes a heading — the only thing on the
+     shelf that looks like a title and is not, sitting directly under two rows
+     of real labels. So at this width it wears the control system's clothes
+     instead: the same box, the same height as every other field, and sentence
+     case, which is how the rest of the app says "type here". */
+  .filter input{height:var(--ctl);border:1px solid var(--rule);padding:0 12px;
+    text-transform:none;font-weight:500;-webkit-appearance:none;appearance:none;border-radius:0}
+  .filter input:focus{border-color:var(--ink)}
+  .filter input::placeholder{text-transform:none;letter-spacing:.02em}
   /* "Recommended" runs past its quarter of the tab row on a phone. Archivo is
      variable, so narrow the face instead of shrinking the type; the ellipsis
      on nav b is the backstop for when the webfont hasn't loaded yet. */
@@ -613,6 +624,64 @@ const SOURCES = {
           ref:it.id, source:"gb"
         };
       });
+    },
+    async blurb(){ return null; }
+  },
+  /* Both catalogues above are built from what publishers and readers hand
+     them, and a Dutch art press printing four hundred copies hands them
+     nothing. K10plus is the union catalogue of the German and European
+     research libraries — legal deposit and acquisition, not submissions — so
+     it holds the small European presses the other two have never heard of.
+     No key, no account: SRU is the library world's plain HTTP query.
+     Dublin Core rather than MARC because DOMParser is already in the browser
+     and DC gives us every field this app stores. */
+  k10: {
+    label:"European libraries", canEditions:false,
+    async search(q){
+      const cql = isIsbn(q)
+        ? `pica.isb=${q.replace(/\D/g,"")}`
+        : `pica.all=${q.replace(/[="]/g," ").trim()}`;
+      const url = "https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve"
+        + "&recordSchema=dc&maximumRecords=14&query=" + encodeURIComponent(cql);
+      const doc = new DOMParser().parseFromString(await (await fetch(url)).text(), "text/xml");
+      /* Namespace-agnostic: the prefixes differ between SRU servers and even
+         between schemas on this one, and a parse error or an SRU diagnostic
+         simply yields no <record> — which reads as "nothing here" and lets the
+         search fall through to the next catalogue instead of throwing. */
+      const tags = (n,t) => [...n.getElementsByTagNameNS("*",t)].map(x=>x.textContent.trim()).filter(Boolean);
+      const one  = (n,t) => tags(n,t)[0] || null;
+      return [...doc.getElementsByTagNameNS("*","record")].map(rec => {
+        const title = one(rec,"title"); if(!title) return null;
+        /* A DC record's identifiers are a mixed bag. Besides the ISBN there
+           are library control numbers like (DE-627)1841203... which strip
+           down to thirteen digits and would pass for one. Take the value that
+           says ISBN, else one that is nothing but an ISBN — never a number
+           wearing a prefix. */
+        const ids = tags(rec,"identifier");
+        const isbn = [ids.find(v=>/isbn/i.test(v)), ...ids.filter(v=>/^[\dXx\-\s]+$/.test(v))]
+          .filter(Boolean)
+          .map(v => v.replace(/[^\dXx]/g,"").toUpperCase())
+          .find(v => v.length===13 || v.length===10) || null;
+        return {
+          title,
+          author: one(rec,"creator") || one(rec,"contributor") || "Unknown",
+          year: ((one(rec,"date")||"").match(/\d{4}/)||[null])[0],
+          pages: 260,                       // DC has no page count worth trusting
+          isbn,
+          /* DC speaks the same three-letter codes the app stores, but some
+             records give them as a vocabulary URI. Take the code off the end,
+             and nothing at all rather than a guess. */
+          lang: ((one(rec,"language")||"").match(/[a-z]{3}$/i)||[null])[0],
+          /* The catalogue carries no images. Open Library serves covers by ISBN
+             whether or not it holds the book, and default=false makes a miss a
+             404 instead of a blank placeholder the panel would paint as real. */
+          coverUrl: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` : null,
+          coverBig: isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false` : null,
+          publisher: one(rec,"publisher"),
+          blurb: one(rec,"description"),
+          ref: null, source:"k10"
+        };
+      }).filter(Boolean);
     },
     async blurb(){ return null; }
   }
@@ -1575,7 +1644,8 @@ function searchPanel(prefill){
     return [lab,seg];
   };
   l1.append(...mk("Edition in",[["nor","Norwegian"],["eng","English"],["any","Any"]],()=>prefLang,k=>{prefLang=k;saveSettings();}));
-  l2.append(...mk("Catalog",[["ol","Open Library"],["gb","Google Books"]],()=>source,k=>{source=k;saveSettings();}));
+  l2.append(...mk("Catalog",[["ol","Open Library"],["gb","Google Books"],["k10","European libraries"]],
+    ()=>source,k=>{source=k;saveSettings();}));
   opts.append(l1,l2);
 
   const hint=el("div","hint"); hint.textContent="Type at least three characters";
@@ -1599,13 +1669,19 @@ function searchPanel(prefill){
     timer=setTimeout(async()=>{
       try{
         let hits=await SOURCES[source].search(q), from=source;
-        /* Neither catalog is complete — Open Library is thin on small European
-           publishers, Google Books is thin on older and self-published work.
-           Rather than make the reader work that out and flip the toggle, try
-           the other one and say which answered. */
+        /* No catalog is complete — Open Library is thin on small European
+           publishers, Google Books is thin on older and self-published work,
+           and the library catalogue is thin on anything a library did not buy.
+           Rather than make the reader work that out and flip the toggle, ask
+           the rest in turn and say which one answered. A catalogue that is
+           down or unreachable is skipped, not fatal: the point of asking three
+           is that any one of them may be silent. */
         if(!hits.length){
-          const other = source==="ol" ? "gb" : "ol";
-          try{ const alt=await SOURCES[other].search(q); if(alt.length){ hits=alt; from=other; } }catch(e){}
+          for(const other of Object.keys(SOURCES)){
+            if(other===source) continue;
+            try{ const alt=await SOURCES[other].search(q);
+              if(alt.length){ hits=alt; from=other; break; } }catch(e){}
+          }
         }
         results.innerHTML="";
         hits.forEach(h=>results.appendChild(resultRow(h)));
@@ -1963,6 +2039,9 @@ $("#openScan").onclick=async()=>{
 const PROBES = [
   ["Open Library search", "https://openlibrary.org/search.json?q=calvino&limit=1", "fetch"],
   ["Google Books search", "https://www.googleapis.com/books/v1/volumes?q=calvino&maxResults=1", "fetch"],
+  ["K10plus (European libraries)",
+   "https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve&recordSchema=dc"
+   + "&maximumRecords=1&query=pica.all%3Dcalvino", "fetch"],
   ["Cover images", "https://covers.openlibrary.org/b/id/240727-S.jpg", "img"]
 ];
 function probeImg(url){
