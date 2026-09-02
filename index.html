@@ -197,7 +197,18 @@ nav button[aria-selected="true"] .n{opacity:1}
 .diagrow .st{font-family:"DM Mono",monospace;font-size:10px;white-space:nowrap;text-align:right}
 .st.ok{color:#2f6b3a}.st.no{color:var(--signal)}.st.wait{color:#a3a39b}
 @media(max-width:560px){
-  .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:2px}
+  .filter{margin-left:0;flex:0 0 100%;max-width:none;order:3;margin-top:6px}
+  /* At the end of the bar this is an 11px field and reads as one. Full width,
+     and at the 16px iOS insists on, uppercase letter-spaced type over a
+     hairline stops being a field and becomes a heading — the only thing on the
+     shelf that looks like a title and is not, sitting directly under two rows
+     of real labels. So at this width it wears the control system's clothes
+     instead: the same box, the same height as every other field, and sentence
+     case, which is how the rest of the app says "type here". */
+  .filter input{height:var(--ctl);border:1px solid var(--rule);padding:0 12px;
+    text-transform:none;font-weight:500;-webkit-appearance:none;appearance:none;border-radius:0}
+  .filter input:focus{border-color:var(--ink)}
+  .filter input::placeholder{text-transform:none;letter-spacing:.02em}
   /* "Recommended" runs past its quarter of the tab row on a phone. Archivo is
      variable, so narrow the face instead of shrinking the type; the ellipsis
      on nav b is the backstop for when the webfont hasn't loaded yet. */
