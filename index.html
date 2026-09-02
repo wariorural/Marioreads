@@ -209,13 +209,18 @@ nav button[aria-selected="true"] .n{opacity:1}
   background-size:cover;background-position:center}
 .scrim{position:fixed;inset:0;background:rgba(17,17,16,.34);opacity:0;z-index:40;transition:opacity .3s;pointer-events:none}
 .scrim.on{opacity:1;pointer-events:auto}
-.panel{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--paper);border-top:1px solid var(--ink);
+.panel{position:fixed;left:0;right:0;bottom:var(--kb,0px);z-index:50;background:var(--paper);
+  border-top:1px solid var(--ink);
   transform:translateY(101%);transition:transform .46s cubic-bezier(.16,1,.3,1);overflow-y:auto;
   /* vh is the large viewport, so with the mobile URL bar showing it can put
-     the panel's bottom under the chrome; dvh tracks it. Browsers without dvh
-     drop the second line. overscroll-behavior stops a flick past the end of a
-     long list from scrolling the page behind the scrim. */
-  max-height:92vh;max-height:92dvh;overscroll-behavior:contain}
+     the panel's bottom under the chrome; dvh tracks it. --vvh is the visible
+     window as the keyboard leaves it (see fitPanel); it falls back to dvh, and
+     a browser with neither drops the calc line and keeps the vh one.
+     overscroll-behavior stops a flick past the end of a long list from
+     scrolling the page behind the scrim. */
+  max-height:92vh;
+  max-height:calc(var(--vvh,100dvh) * .92);
+  overscroll-behavior:contain}
 .panel.on{transform:translateY(0)}
 .panelin{max-width:1180px;margin:0 auto;padding:0 var(--gut) calc(26px + env(safe-area-inset-bottom))}
 /* Everything that stays put while the panel scrolls lives in one sticky
@@ -276,21 +281,16 @@ nav button[aria-selected="true"] .n{opacity:1}
 .act.sig.urge{background:var(--signal);color:var(--paper)}
 
 /* A toggle wears the control system's metrics but not the border weight of an
-   action: it isn't a thing you do. The mark is a square that fills when on, so
-   on and off differ in ink and not only in wording — it survives a greyscale
-   screenshot, the way the segmented control's underline does. */
-.tog{gap:8px;border:1px solid var(--rule);background:transparent;color:#8b8b83;font-family:inherit;
+   action: it isn't a thing you do. On and off have to differ in ink and not
+   only in wording — a state you can only read by its wording is one you
+   re-read every time — so the whole button fills when it is on. That is the
+   same "this is set" the tab bar and .act.on already use, and unlike a tinted
+   outline it survives a greyscale screenshot. */
+.tog{border:1px solid var(--rule);background:transparent;color:#8b8b83;font-family:inherit;
   font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;
-  transition:border-color .16s,color .16s}
-.tog .dot{flex:0 0 8px;width:8px;height:8px;border:1px solid currentColor}
+  transition:background .16s,border-color .16s,color .16s}
 .tog:hover,.tog:focus-visible{border-color:var(--ink);color:var(--ink)}
-/* Now that the rows close their line, a centred mark would make the toggle the
-   same object as the button beside it — the one thing this control was drawn
-   not to be. Left-aligned, it reads as a box you tick, and the difference
-   survives at a glance instead of only on inspection. */
-.acts>.tog{justify-content:flex-start}
-.tog[aria-pressed="true"]{border-color:var(--ink);color:var(--ink)}
-.tog[aria-pressed="true"] .dot{background:var(--ink)}
+.tog[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 
 /* Editing the record and deleting it are not reading actions: below the rule,
    after everything you actually opened the panel to do. */
@@ -1054,6 +1054,28 @@ function openPanel(title,node,head){
      and not in closePanel, where the sheet is still visibly sliding away. */
   p.scrollTop=0;
 }
+/* The keyboard does not shrink the layout viewport on iOS — it just covers
+   the bottom of it. A sheet pinned to that bottom therefore runs on behind the
+   keys, and since it is also taller than what is left, its top goes off the
+   screen: the query field, sticky to a panel top that is no longer on screen,
+   goes with it, and you type blind into a list of results. visualViewport is
+   the only thing that knows where the visible window actually is, so the panel
+   is measured and pinned against that instead of against the window.
+   offsetTop is in the sum because Safari scrolls the visual viewport as well
+   as resizing it, and a panel that ignored that would sit one keyboard too
+   low. No listener at all on a browser without the API: bottom and height then
+   fall back to the plain viewport, which is what they were before. */
+function fitPanel(){
+  const vv=visualViewport, r=document.documentElement;
+  r.style.setProperty("--kb", Math.max(0, innerHeight-(vv.offsetTop+vv.height))+"px");
+  r.style.setProperty("--vvh", vv.height+"px");
+}
+if(window.visualViewport){
+  visualViewport.addEventListener("resize",fitPanel);
+  visualViewport.addEventListener("scroll",fitPanel);
+  fitPanel();
+}
+
 function closePanel(){
   $("#panel").classList.remove("on"); $("#scrim").classList.remove("on");
   if(flyer){ flyer.remove(); flyer=null; }
@@ -1234,16 +1256,14 @@ function statusText(b){
 }
 
 /* A toggle, not an action: it states a property of the book rather than doing
-   something to it, so it must not wear the same clothes as Give up. The label
-   stays put and the mark carries the state — a button whose words change is a
-   button you have to read twice. aria-pressed is the hook the segmented
-   control already styles on. */
+   something to it. The label stays put and the fill carries the state — a
+   button whose words change is a button you have to read twice. aria-pressed
+   is both the hook the CSS states on and what a screen reader announces, so
+   the state is never carried by colour alone. */
 function toggleBtn(label,on,fn){
   const t=el("button","tog");
   t.setAttribute("aria-pressed",String(!!on));
-  const dot=el("span","dot"); dot.setAttribute("aria-hidden","true");
-  const tl=el("span"); tl.textContent=label;
-  t.append(dot,tl);
+  t.textContent=label;
   t.onclick=()=>fn(t);
   return t;
 }
