@@ -11,7 +11,12 @@
 <link rel="apple-touch-icon" href="./icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- "default" makes iOS reserve an opaque band above the web view and paint it
+     system grey, ignoring theme-color below; "black-translucent" hands that
+     strip back to the page, so the paper and its dot grid run under the clock.
+     .wrap already pads by safe-area-inset-top, which is what keeps the wordmark
+     clear of it — that padding was inert until this line changed. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Bookshelf">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -371,7 +376,13 @@ nav button[aria-selected="true"] .n{opacity:1}
 .res .add{margin-left:auto;font-size:16px;color:#6a6a63;padding-left:8px}
 #cam{width:100%;max-width:420px;margin-top:16px;background:#111;aspect-ratio:4/3;object-fit:cover}
 
-.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,140%);z-index:80;background:var(--ink);
+/* The hidden offset has to be its own height plus the gap it sits above the
+   floor — nothing less puts its top edge on the viewport's bottom. A bare
+   percentage cannot do it: the translate scales with the box while the 22px
+   does not, so the two never cancel and the old 140% left a black sliver
+   standing at the foot of every screen, whatever the message said. */
+.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));
+  transform:translate(-50%,calc(100% + 22px + env(safe-area-inset-bottom)));z-index:80;background:var(--ink);
   color:var(--paper);padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
   transition:transform .35s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:14px}
 .toast.on{transform:translate(-50%,0)}
@@ -434,6 +445,7 @@ nav button[aria-selected="true"] .n{opacity:1}
     <button id="nettest">Network test</button>
     <button id="export">Export JSON</button>
     <button id="import">Import CSV / JSON</button>
+    <button id="findcovers" hidden>Find missing covers</button>
     <button id="wipe">Empty the shelf</button>
     <span id="storenote" class="storenote"></span>
     <input type="file" id="importfile" accept="application/json,.json,text/csv,.csv" hidden>
@@ -704,6 +716,12 @@ function render(){
     const n = k==="rec" ? books.filter(b=>b.rec).length : books.filter(b=>b.shelf===k).length;
     $(`[data-count="${k}"]`).textContent = String(n).padStart(2,"0");
   }
+  /* Counted from the data on every paint, so pressing it twice picks up where
+     the last run stopped and it disappears of its own accord when the shelf is
+     complete. An offer to find nothing is worse than no offer. */
+  const nocov=coverless().length, fc=$("#findcovers");
+  fc.hidden=!nocov;
+  if(nocov) fc.textContent=`Find ${nocov} missing cover${nocov===1?"":"s"}`;
   buildBar();
   const host=$("#view"); host.innerHTML="";
   const list = listFor(view);
@@ -2042,25 +2060,55 @@ function csvToBooks(text){
   });
 }
 
-/* After an import, look up covers and catalog refs for books that lack them.
-   Repaints are batched so the shelf doesn't redraw once per book. */
-async function enrichCovers(){
-  const missing=books.filter(b=>!b.coverUrl&&!b.ref).slice(0,60);
-  let dirty=0;
+/* ═══════════ finding covers ═══════════
+   A catalogue record is not a picture. Open Library returns a cover id only
+   when it holds a jacket, so a book can be perfectly well linked and still
+   have none — and the old filter here, !coverUrl && !ref, skipped exactly
+   those, on the grounds that they had a ref. They are the whole point of a
+   sweep. Which catalogue to ask follows from that too: re-asking the one that
+   just said it had no picture returns the same empty record, so ask the other. */
+const otherSrc = s => s==="ol" ? ["gb"] : s==="gb" ? ["ol"] : ["ol","gb"];
+const coverless = () => books.filter(b=>!b.coverUrl);
+
+async function findCovers(limit=40){
+  const missing=coverless().slice(0,limit);
+  let dirty=0, found=0;
   for(const b of missing){
+    const q = b.isbn || `${b.title} ${b.author}`;
+    let hit=null;
+    for(const s of otherSrc(b.src)){
+      /* Scoped to the one lookup: a catalogue failing is not the book failing,
+         and a book failing is not the run failing. A 429 from Google Books
+         partway through has to leave both the other catalogue and the rest of
+         the shelf their chance. */
+      try{
+        const hits=await SOURCES[s].search(q);
+        /* Only a hit that actually carries a jacket. Taking the first result
+           regardless — what this used to do — buys nothing and costs the
+           book's identity, since the fields below get overwritten from it. */
+        hit=hits.find(h=>h.coverUrl);
+        if(hit){ hit.__src=s; break; }
+      }catch(e){}
+    }
+    if(!hit) continue;
     try{
-      const hits=await SOURCES.ol.search(b.isbn||`${b.title} ${b.author}`);
-      const hit=hits.find(h=>h.coverUrl)||hits[0];
-      if(!hit) continue;
-      b.ref=hit.ref; b.src="ol";
-      if(!b.isbn) b.isbn=hit.isbn;
-      if(!b.year) b.year=hit.year;
-      b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig;
+      b.coverUrl=hit.coverUrl; b.coverBig=hit.coverBig||hit.coverUrl;
+      /* A book that already has a catalogue record keeps it: this pass is
+         looking for a picture, and a search matched on title and author is
+         not good enough evidence to requalify a book that was already
+         identified. Only a book with nothing to lose gets its record filled. */
+      if(!b.ref){
+        b.ref=hit.ref; b.src=hit.__src;
+        if(!b.isbn) b.isbn=hit.isbn;
+        if(!b.year) b.year=hit.year;
+      }
       const c=await extractColor(b.coverUrl); if(c) b.color=c;
-      if(++dirty%8===0){ render(); save(); }
+      found++;
+      if(++dirty%8===0){ render(); save(); }   // batched, or the shelf redraws once per fetch
     }catch(e){}
   }
   if(dirty){ render(); save(); }
+  return {found, tried:missing.length};
 }
 
 $("#importfile").onchange=async e=>{
@@ -2089,9 +2137,18 @@ $("#importfile").onchange=async e=>{
     });
     await save(); render();
     toast(`${added} books imported`, ()=>{ books=backup; save(); render(); });
-    if(added) enrichCovers();
+    if(added) findCovers();
   }catch(err){ toast("Invalid file"); }
   e.target.value="";
+};
+$("#findcovers").onclick=async e=>{
+  const btn=e.target;
+  if(btn.disabled) return;
+  btn.disabled=true; btn.textContent="Looking …";
+  const {found,tried}=await findCovers();
+  btn.disabled=false;
+  render();                       // recounts the label, or hides it if none are left
+  toast(found ? `${found} of ${tried} covers found` : `No covers found for ${tried}`);
 };
 $("#wipe").onclick=async()=>{
   if(!books.length){ toast("The shelf is already empty"); return; }
